@@ -13,6 +13,8 @@ import {
   SkipForward,
   StopCircle,
   TriangleAlert,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,6 +47,8 @@ export default function InterviewPage() {
   const [inputMode, setInputMode] = React.useState<"voice" | "text">("voice");
   const [pageError, setPageError] = React.useState("");
   const [isGeneratingReport, setIsGeneratingReport] = React.useState(false);
+  const [ttsEnabled, setTtsEnabled] = React.useState(false);
+  const [speaking, setSpeaking] = React.useState(false);
 
   const messagesEndRef = React.useRef<HTMLDivElement | null>(null);
   const latestRef = React.useRef({
@@ -56,6 +60,22 @@ export default function InterviewPage() {
 
   const handleAsrText = React.useCallback((text: string) => {
     setDraft(text);
+  }, []);
+
+  const speak = React.useCallback((text: string) => {
+    if (!("speechSynthesis" in window) || !window.speechSynthesis) {
+      setPageError("当前浏览器不支持语音朗读。");
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "zh-CN";
+    utterance.rate = 1;
+    utterance.onstart = () => setSpeaking(true);
+    utterance.onend = () => setSpeaking(false);
+    utterance.onerror = () => setSpeaking(false);
+    window.speechSynthesis.speak(utterance);
   }, []);
 
   const {
@@ -210,6 +230,22 @@ export default function InterviewPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversation, isProcessing, isGeneratingReport]);
 
+  React.useEffect(() => {
+    if (!ttsEnabled) return;
+    const lastMessage = conversation[conversation.length - 1];
+    if (lastMessage?.role === "assistant" && lastMessage.content) {
+      speak(lastMessage.content);
+    }
+  }, [conversation, ttsEnabled, speak]);
+
+  React.useEffect(() => {
+    return () => {
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
   function handleSubmit() {
     if (!config) return;
     const text = draft.trim();
@@ -332,6 +368,28 @@ export default function InterviewPage() {
             {Math.min(currentIndex + 1, config.questions.length)} /{" "}
             {config.questions.length} 题
           </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className={
+              ttsEnabled
+                ? "text-blue-300 hover:bg-blue-500/10 hover:text-blue-200"
+                : "text-slate-400 hover:bg-white/10 hover:text-white"
+            }
+            onClick={() => setTtsEnabled((enabled) => !enabled)}
+          >
+            {ttsEnabled ? (
+              <VolumeX className="h-4 w-4" />
+            ) : (
+              <Volume2 className="h-4 w-4" />
+            )}
+            {ttsEnabled && speaking
+              ? "朗读中…"
+              : ttsEnabled
+                ? "关闭念题"
+                : "语音念题"}
+          </Button>
           <Button
             type="button"
             variant="ghost"
