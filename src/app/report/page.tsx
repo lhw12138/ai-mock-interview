@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle2, Lightbulb, RotateCcw, Sparkles } from "lucide-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadarChart } from "@/components/radar-chart";
+import { ReportShareButton } from "@/components/report-share-button";
 import { getLatestValidSession, getSessionById } from "@/lib/storage";
 import { getRoleLabel } from "@/lib/roles";
 import type { InterviewSession } from "@/lib/types";
@@ -80,10 +81,13 @@ export default function ReportPage() {
           <ArrowLeft className="h-4 w-4" />
           返回首页
         </Button>
-        <Button size="sm" variant="secondary" onClick={() => router.push("/")}>
-          <RotateCcw className="h-4 w-4" />
-          再练一次
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="secondary" onClick={() => router.push("/")}>
+            <RotateCcw className="h-4 w-4" />
+            再练一次
+          </Button>
+          <ReportShareButton session={session} />
+        </div>
       </div>
 
       <Card className="mb-6 overflow-hidden">
