@@ -27,6 +27,9 @@ export default function HomePage() {
   const [questionCount, setQuestionCount] = React.useState<number>(8);
   const [isStarting, setIsStarting] = React.useState(false);
   const [resume, setResume] = React.useState("");
+  const [difficulty, setDifficulty] = React.useState<
+    "basic" | "intermediate" | "advanced"
+  >("intermediate");
   const [startError, setStartError] = React.useState("");
 
   React.useEffect(() => {
@@ -46,22 +49,24 @@ export default function HomePage() {
         const response = await fetch("/api/resume", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ role, resume: trimmedResume }),
+          body: JSON.stringify({ role, resume: trimmedResume, difficulty }),
         });
         const payload = await response.json();
 
-        if (!response.ok || !payload.question) {
+        if (!response.ok || !Array.isArray(payload.questions)) {
           throw new Error(payload.error || "简历针对性问题生成失败。");
         }
 
         questions = [
           ...questions,
-          {
-            id: Date.now(),
-            question: payload.question,
-            category: payload.category ?? "简历针对性",
-            answer: payload.answer ?? "",
-          },
+          ...payload.questions.map(
+            (item: { question: string; category: string; answer: string }, index: number) => ({
+              id: Date.now() + index,
+              question: item.question,
+              category: item.category ?? "简历针对性",
+              answer: item.answer ?? "",
+            }),
+          ),
         ];
       }
 
@@ -187,10 +192,26 @@ export default function HomePage() {
               简历针对性提问
               <span className="ml-2 text-xs font-normal text-slate-500">可选</span>
             </div>
+            <div className="mb-3">
+              <span className="mb-1 block text-xs text-slate-400">提问难度</span>
+              <select
+                value={difficulty}
+                onChange={(event) =>
+                  setDifficulty(
+                    event.target.value as "basic" | "intermediate" | "advanced",
+                  )
+                }
+                className="h-10 w-full rounded-lg border border-white/10 bg-slate-950 px-3 text-sm text-slate-200"
+              >
+                <option value="basic">基础</option>
+                <option value="intermediate">进阶</option>
+                <option value="advanced">困难</option>
+              </select>
+            </div>
             <Textarea
               value={resume}
               onChange={(event) => setResume(event.target.value)}
-              placeholder="粘贴简历内容或关键经历，例如：3年AI产品经验，负责过RAG知识库产品。开始面试后会额外生成一道针对性问题。"
+              placeholder="粘贴简历内容或关键经历，例如：3年AI产品经验，负责过RAG知识库产品。开始面试后会根据难度额外生成 3 道针对性问题。"
             />
           </section>
 
