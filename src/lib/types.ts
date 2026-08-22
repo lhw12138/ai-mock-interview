@@ -7,6 +7,10 @@ export interface Question {
   answer: string;
 }
 
+export interface CustomQuestion extends Question {
+  role: RoleKey;
+}
+
 export type ChatRole = "assistant" | "user";
 
 export interface ChatMessage {

@@ -1,4 +1,5 @@
 import type {
+  CustomQuestion,
   DimensionScore,
   InterviewConfig,
   InterviewReport,
@@ -9,6 +10,7 @@ import type {
 const STORAGE_KEY = "ai-mock-interview:sessions";
 const CONFIG_KEY = "ai-mock-interview:config";
 const BOOKMARK_KEY = "ai-mock-interview:bookmarks";
+const CUSTOM_QUESTION_KEY = "ai-mock-interview:custom-questions";
 
 function isBrowser(): boolean {
   return typeof window !== "undefined";
@@ -44,6 +46,42 @@ export function removeBookmark(questionId: number): void {
 
 export function isBookmarked(questionId: number): boolean {
   return loadBookmarks().some((item) => item.id === questionId);
+}
+
+export function loadCustomQuestions(): CustomQuestion[] {
+  if (!isBrowser()) return [];
+
+  try {
+    const raw = window.localStorage.getItem(CUSTOM_QUESTION_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as CustomQuestion[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveCustomQuestions(questions: CustomQuestion[]): void {
+  if (!isBrowser()) return;
+  window.localStorage.setItem(CUSTOM_QUESTION_KEY, JSON.stringify(questions));
+}
+
+export function addCustomQuestion(question: CustomQuestion): void {
+  const questions = loadCustomQuestions().filter((item) => item.id !== question.id);
+  questions.unshift(question);
+  saveCustomQuestions(questions);
+}
+
+export function updateCustomQuestion(question: CustomQuestion): void {
+  const questions = loadCustomQuestions().map((item) =>
+    item.id === question.id ? question : item,
+  );
+  saveCustomQuestions(questions);
+}
+
+export function deleteCustomQuestion(questionId: number): void {
+  const questions = loadCustomQuestions().filter((item) => item.id !== questionId);
+  saveCustomQuestions(questions);
 }
 
 export function loadSessions(): InterviewSession[] {

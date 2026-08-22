@@ -1,5 +1,6 @@
 import { getQuestions, type Question } from "./questions";
 import type { RoleKey } from "./types";
+import { loadCustomQuestions } from "./storage";
 
 export interface RoleOption {
   key: RoleKey;
@@ -16,5 +17,25 @@ export function getRoleLabel(role: RoleKey): string {
 }
 
 export function getQuestionsForRole(role: RoleKey, count: number): Question[] {
-  return getQuestions(getRoleLabel(role), count);
+  const builtIn = getQuestions(getRoleLabel(role), count);
+  const custom = loadCustomQuestions()
+    .filter((question) => question.role === role)
+    .map((question) => ({
+      id: question.id,
+      question: question.question,
+      category: question.category,
+      answer: question.answer,
+    }));
+  const pool = [...custom, ...builtIn];
+  const shuffled = [...pool];
+
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[randomIndex]] = [
+      shuffled[randomIndex],
+      shuffled[index],
+    ];
+  }
+
+  return shuffled.slice(0, Math.min(count, shuffled.length));
 }

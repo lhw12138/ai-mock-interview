@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Bookmark,
+  BookOpenText,
   BriefcaseBusiness,
   History,
   Mic,
@@ -47,6 +48,14 @@ export default function HomePage() {
   return (
     <main className="relative mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-5 py-12">
       <div className="absolute right-5 top-5 flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push("/question-bank")}
+        >
+          <BookOpenText className="h-4 w-4" />
+          题库
+        </Button>
         <Button
           variant="ghost"
           size="sm"
