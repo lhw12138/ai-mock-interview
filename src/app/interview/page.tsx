@@ -6,6 +6,7 @@ import { experimental_useObject } from "ai/react";
 import {
   ArrowLeft,
   AudioLines,
+  Bookmark,
   Loader2,
   Mic,
   MicOff,
@@ -23,7 +24,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { interviewTurnSchema } from "@/lib/schemas";
 import {
   clearInterviewConfig,
+  isBookmarked,
   loadInterviewConfig,
+  removeBookmark,
+  saveBookmark,
   saveSession,
 } from "@/lib/storage";
 import type {
@@ -49,6 +53,7 @@ export default function InterviewPage() {
   const [isGeneratingReport, setIsGeneratingReport] = React.useState(false);
   const [ttsEnabled, setTtsEnabled] = React.useState(false);
   const [speaking, setSpeaking] = React.useState(false);
+  const [bookmarked, setBookmarked] = React.useState(false);
 
   const messagesEndRef = React.useRef<HTMLDivElement | null>(null);
   const latestRef = React.useRef({
@@ -227,6 +232,13 @@ export default function InterviewPage() {
   }, [config, currentIndex, followUpCount, conversation]);
 
   React.useEffect(() => {
+    const question = config?.questions[currentIndex];
+    if (question) {
+      setBookmarked(isBookmarked(question.id));
+    }
+  }, [config, currentIndex]);
+
+  React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversation, isProcessing, isGeneratingReport]);
 
@@ -339,6 +351,19 @@ export default function InterviewPage() {
     void generateReport(config, nextConversation);
   }
 
+  function handleToggleBookmark() {
+    const question = config?.questions[currentIndex];
+    if (!question) return;
+
+    if (bookmarked) {
+      removeBookmark(question.id);
+      setBookmarked(false);
+    } else {
+      saveBookmark(question);
+      setBookmarked(true);
+    }
+  }
+
   if (!config) {
     return (
       <main className="flex min-h-screen items-center justify-center text-slate-400">
@@ -411,11 +436,30 @@ export default function InterviewPage() {
       <Card className="flex min-h-0 flex-1 flex-col">
         <CardContent className="flex min-h-0 flex-1 flex-col gap-4 p-4 sm:p-6">
           <div className="rounded-xl border border-white/10 bg-slate-950/50 px-4 py-3">
-            <div className="mb-1 text-xs text-violet-300">
-              {currentQuestion?.category}
-            </div>
-            <div className="text-sm font-medium leading-6 text-slate-100">
-              {currentQuestion?.question}
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="mb-1 text-xs text-violet-300">
+                  {currentQuestion?.category}
+                </div>
+                <div className="text-sm font-medium leading-6 text-slate-100">
+                  {currentQuestion?.question}
+                </div>
+              </div>
+              <button
+                type="button"
+                className={
+                  bookmarked
+                    ? "shrink-0 text-amber-300 hover:text-amber-200"
+                    : "shrink-0 text-slate-500 hover:text-amber-200"
+                }
+                onClick={handleToggleBookmark}
+                aria-label={bookmarked ? "取消收藏" : "收藏题目"}
+              >
+                <Bookmark
+                  className="h-5 w-5"
+                  fill={bookmarked ? "currentColor" : "none"}
+                />
+              </button>
             </div>
           </div>
 

@@ -3,13 +3,47 @@ import type {
   InterviewConfig,
   InterviewReport,
   InterviewSession,
+  Question,
 } from "./types";
 
 const STORAGE_KEY = "ai-mock-interview:sessions";
 const CONFIG_KEY = "ai-mock-interview:config";
+const BOOKMARK_KEY = "ai-mock-interview:bookmarks";
 
 function isBrowser(): boolean {
   return typeof window !== "undefined";
+}
+
+export function loadBookmarks(): Question[] {
+  if (!isBrowser()) return [];
+
+  try {
+    const raw = window.localStorage.getItem(BOOKMARK_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as Question[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveBookmark(question: Question): void {
+  if (!isBrowser()) return;
+
+  const bookmarks = loadBookmarks().filter((item) => item.id !== question.id);
+  bookmarks.unshift(question);
+  window.localStorage.setItem(BOOKMARK_KEY, JSON.stringify(bookmarks));
+}
+
+export function removeBookmark(questionId: number): void {
+  if (!isBrowser()) return;
+
+  const bookmarks = loadBookmarks().filter((item) => item.id !== questionId);
+  window.localStorage.setItem(BOOKMARK_KEY, JSON.stringify(bookmarks));
+}
+
+export function isBookmarked(questionId: number): boolean {
+  return loadBookmarks().some((item) => item.id === questionId);
 }
 
 export function loadSessions(): InterviewSession[] {

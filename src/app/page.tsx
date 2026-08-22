@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
+  Bookmark,
   BriefcaseBusiness,
   History,
   Mic,
@@ -45,15 +46,24 @@ export default function HomePage() {
 
   return (
     <main className="relative mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-5 py-12">
-      <Button
-        variant="ghost"
-        size="sm"
-        className="absolute right-5 top-5"
-        onClick={() => router.push("/history")}
-      >
-        <History className="h-4 w-4" />
-        历史记录
-      </Button>
+      <div className="absolute right-5 top-5 flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push("/bookmarks")}
+        >
+          <Bookmark className="h-4 w-4" />
+          收藏题目
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push("/history")}
+        >
+          <History className="h-4 w-4" />
+          历史记录
+        </Button>
+      </div>
 
       <div className="mb-10 text-center">
         <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-4 py-1.5 text-sm text-blue-300">
