@@ -6,7 +6,7 @@ import { ArrowLeft, CheckCircle2, Lightbulb, RotateCcw, Sparkles } from "lucide-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadarChart } from "@/components/radar-chart";
-import { getLatestValidSession } from "@/lib/storage";
+import { getLatestValidSession, getSessionById } from "@/lib/storage";
 import { getRoleLabel } from "@/lib/roles";
 import type { InterviewSession } from "@/lib/types";
 
@@ -17,13 +17,16 @@ export default function ReportPage() {
   const [loadError, setLoadError] = React.useState("");
 
   React.useEffect(() => {
-    const latest = getLatestValidSession();
-    if (!latest) {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id");
+    const target = id ? getSessionById(id) : getLatestValidSession();
+
+    if (!target) {
       setLoadError("未找到有效的面试报告，请返回首页重新开始一次面试。");
       setChecking(false);
       return;
     }
-    setSession(latest);
+    setSession(target);
     setChecking(false);
   }, [router]);
 

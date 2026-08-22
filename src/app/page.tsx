@@ -2,7 +2,13 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, BriefcaseBusiness, Mic, Sparkles } from "lucide-react";
+import {
+  ArrowRight,
+  BriefcaseBusiness,
+  History,
+  Mic,
+  Sparkles,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getQuestionsForRole, ROLE_OPTIONS } from "@/lib/roles";
@@ -38,7 +44,17 @@ export default function HomePage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-5 py-12">
+    <main className="relative mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-5 py-12">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="absolute right-5 top-5"
+        onClick={() => router.push("/history")}
+      >
+        <History className="h-4 w-4" />
+        历史记录
+      </Button>
+
       <div className="mb-10 text-center">
         <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-4 py-1.5 text-sm text-blue-300">
           <Sparkles className="h-4 w-4" />

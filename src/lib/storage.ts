@@ -86,7 +86,7 @@ function isInterviewSession(value: unknown): value is InterviewSession {
   );
 }
 
-export function getLatestValidSession(): InterviewSession | null {
+export function getValidSessions(): InterviewSession[] {
   const sessions = loadSessions();
   const validSessions = sessions.filter(isInterviewSession);
 
@@ -98,7 +98,15 @@ export function getLatestValidSession(): InterviewSession | null {
     }
   }
 
-  return validSessions[0] ?? null;
+  return validSessions.slice(0, 20);
+}
+
+export function getLatestValidSession(): InterviewSession | null {
+  return getValidSessions()[0] ?? null;
+}
+
+export function getSessionById(id: string): InterviewSession | null {
+  return getValidSessions().find((session) => session.id === id) ?? null;
 }
 
 export function saveInterviewConfig(config: InterviewConfig): void {
