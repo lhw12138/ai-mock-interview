@@ -10,6 +10,8 @@ import {
   Mic,
   MicOff,
   Send,
+  SkipForward,
+  StopCircle,
   TriangleAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -242,6 +244,65 @@ export default function InterviewPage() {
     });
   }
 
+  function handleSkipQuestion() {
+    if (!config || isProcessing || isGeneratingReport) return;
+
+    cancelAsr();
+    setPageError("");
+
+    const userMessage: ChatMessage = { role: "user", content: "[跳过本题]" };
+    const nextConversation = [...conversation, userMessage];
+    const isLast = currentIndex >= config.questions.length - 1;
+
+    if (isLast) {
+      setConversation(nextConversation);
+      latestRef.current = {
+        config,
+        currentIndex,
+        followUpCount,
+        conversation: nextConversation,
+      };
+      void generateReport(config, nextConversation);
+      return;
+    }
+
+    const nextQuestion = config.questions[currentIndex + 1];
+    const assistantMessage: ChatMessage = {
+      role: "assistant",
+      content: nextQuestion.question,
+    };
+    const advancedConversation = [...nextConversation, assistantMessage];
+
+    setConversation(advancedConversation);
+    setCurrentIndex((index) => index + 1);
+    setFollowUpCount(0);
+    latestRef.current = {
+      config,
+      currentIndex: currentIndex + 1,
+      followUpCount: 0,
+      conversation: advancedConversation,
+    };
+  }
+
+  function handleEndEarly() {
+    if (!config || isProcessing || isGeneratingReport) return;
+
+    cancelAsr();
+    setPageError("");
+
+    const userMessage: ChatMessage = { role: "user", content: "[提前结束面试]" };
+    const nextConversation = [...conversation, userMessage];
+
+    setConversation(nextConversation);
+    latestRef.current = {
+      config,
+      currentIndex,
+      followUpCount,
+      conversation: nextConversation,
+    };
+    void generateReport(config, nextConversation);
+  }
+
   if (!config) {
     return (
       <main className="flex min-h-screen items-center justify-center text-slate-400">
@@ -265,10 +326,23 @@ export default function InterviewPage() {
           <ArrowLeft className="h-4 w-4" />
           退出
         </Button>
-        <div className="text-sm text-slate-400">
-          {getRoleLabel(config.role)} · 第{" "}
-          {Math.min(currentIndex + 1, config.questions.length)} /{" "}
-          {config.questions.length} 题
+        <div className="flex items-center gap-2">
+          <div className="text-sm text-slate-400">
+            {getRoleLabel(config.role)} · 第{" "}
+            {Math.min(currentIndex + 1, config.questions.length)} /{" "}
+            {config.questions.length} 题
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-amber-300 hover:bg-amber-500/10 hover:text-amber-200"
+            disabled={isProcessing || isGeneratingReport}
+            onClick={handleEndEarly}
+          >
+            <StopCircle className="h-4 w-4" />
+            提前结束
+          </Button>
         </div>
       </header>
 
@@ -425,13 +499,24 @@ export default function InterviewPage() {
                   ? `当前：${engineLabel}，提交前可检查修正。`
                   : "识别结果可能存在误差，建议提交前检查一遍。"}
               </div>
-              <Button
-                onClick={handleSubmit}
-                disabled={!draft.trim() || isProcessing || isGeneratingReport}
-              >
-                {isProcessing ? "等待面试官…" : "提交回答"}
-                {!isProcessing && <Send className="h-4 w-4" />}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleSkipQuestion}
+                  disabled={isProcessing || isGeneratingReport}
+                >
+                  <SkipForward className="h-4 w-4" />
+                  跳过本题
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={!draft.trim() || isProcessing || isGeneratingReport}
+                >
+                  {isProcessing ? "等待面试官…" : "提交回答"}
+                  {!isProcessing && <Send className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>
