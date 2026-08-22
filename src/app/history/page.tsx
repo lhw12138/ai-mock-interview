@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { TrendChart } from "@/components/trend-chart";
 import { getRoleLabel } from "@/lib/roles";
 import { getValidSessions } from "@/lib/storage";
 import type { InterviewSession } from "@/lib/types";
@@ -73,36 +74,40 @@ export default function HistoryPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {sessions.map((session) => (
-            <button
-              key={session.id}
-              type="button"
-              onClick={() => router.push(`/report?id=${session.id}`)}
-              className="w-full rounded-xl border border-white/10 bg-slate-900/70 px-5 py-4 text-left transition-colors hover:border-blue-500/50 hover:bg-slate-900"
-            >
-              <div className="flex items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="font-medium text-slate-200">
-                    {getRoleLabel(session.role)} · {session.questionCount} 题
-                  </div>
-                  <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
-                    <CalendarDays className="h-3.5 w-3.5" />
-                    {formatDate(session.createdAt)}
-                  </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-4">
-                  <div className="text-right">
-                    <div className="text-2xl font-semibold text-blue-400">
-                      {session.report.totalScore}
+        <div className="space-y-5">
+          <TrendChart sessions={sessions} />
+
+          <div className="space-y-3">
+            {sessions.map((session) => (
+              <button
+                key={session.id}
+                type="button"
+                onClick={() => router.push(`/report?id=${session.id}`)}
+                className="w-full rounded-xl border border-white/10 bg-slate-900/70 px-5 py-4 text-left transition-colors hover:border-blue-500/50 hover:bg-slate-900"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="font-medium text-slate-200">
+                      {getRoleLabel(session.role)} · {session.questionCount} 题
                     </div>
-                    <div className="text-xs text-slate-500">综合得分</div>
+                    <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      {formatDate(session.createdAt)}
+                    </div>
                   </div>
-                  <ChevronRight className="h-5 w-5 text-slate-600" />
+                  <div className="flex shrink-0 items-center gap-4">
+                    <div className="text-right">
+                      <div className="text-2xl font-semibold text-blue-400">
+                        {session.report.totalScore}
+                      </div>
+                      <div className="text-xs text-slate-500">综合得分</div>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-slate-600" />
+                  </div>
                 </div>
-              </div>
-            </button>
-          ))}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </main>
