@@ -32,7 +32,7 @@ import type {
   InterviewTurn,
 } from "@/lib/types";
 import { getRoleLabel } from "@/lib/roles";
-import { cn } from "@/lib/utils";
+import { cn, createId } from "@/lib/utils";
 import { useAsr } from "@/lib/asr/use-asr";
 
 export default function InterviewPage() {
@@ -104,7 +104,7 @@ export default function InterviewPage() {
         }
 
         const session: InterviewSession = {
-          id: crypto.randomUUID(),
+          id: createId(),
           createdAt: new Date().toISOString(),
           role: currentConfig.role,
           questionCount: currentConfig.questions.length,
