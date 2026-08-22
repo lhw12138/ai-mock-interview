@@ -33,3 +33,21 @@ body {
 * {
   box-sizing: border-box;
 }
+
+@media print {
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  * {
+    background: transparent !important;
+    color: #000 !important;
+    border-color: #d1d5db !important;
+    box-shadow: none !important;
+  }
+
+  .print-hidden {
+    display: none !important;
+  }
+}

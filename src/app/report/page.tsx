@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Lightbulb, RotateCcw, Sparkles } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Lightbulb, Printer, RotateCcw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadarChart } from "@/components/radar-chart";
@@ -76,12 +76,16 @@ export default function ReportPage() {
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-5xl px-5 py-8">
-      <div className="mb-6 flex items-center justify-between gap-3">
+      <div className="print-hidden mb-6 flex items-center justify-between gap-3">
         <Button variant="ghost" size="sm" onClick={() => router.push("/")}>
           <ArrowLeft className="h-4 w-4" />
           返回首页
         </Button>
         <div className="flex items-center gap-2">
+          <Button size="sm" variant="secondary" onClick={() => window.print()}>
+            <Printer className="h-4 w-4" />
+            导出 PDF
+          </Button>
           <Button size="sm" variant="secondary" onClick={() => router.push("/")}>
             <RotateCcw className="h-4 w-4" />
             再练一次
