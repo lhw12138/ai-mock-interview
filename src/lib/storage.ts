@@ -143,6 +143,13 @@ export function getSessionById(id: string): InterviewSession | null {
   return getValidSessions().find((session) => session.id === id) ?? null;
 }
 
+export function deleteSession(id: string): void {
+  if (!isBrowser()) return;
+
+  const sessions = loadSessions().filter((session) => session.id !== id);
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions.slice(0, 20)));
+}
+
 export function saveInterviewConfig(config: InterviewConfig): void {
   if (!isBrowser()) return;
   const value = JSON.stringify(config);

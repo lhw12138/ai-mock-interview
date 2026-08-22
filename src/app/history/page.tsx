@@ -5,15 +5,15 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CalendarDays,
-  ChevronRight,
   History,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { TrendChart } from "@/components/trend-chart";
 import { getRoleLabel } from "@/lib/roles";
-import { getValidSessions } from "@/lib/storage";
+import { deleteSession, getValidSessions } from "@/lib/storage";
 import type { InterviewSession } from "@/lib/types";
 
 function formatDate(value: string): string {
@@ -34,6 +34,14 @@ export default function HistoryPage() {
     setSessions(getValidSessions());
     setLoading(false);
   }, []);
+
+  function handleDelete(id: string): void {
+    const confirmed = window.confirm("确定要删除这次面试记录吗？删除后无法恢复。");
+    if (!confirmed) return;
+
+    deleteSession(id);
+    setSessions((items) => items.filter((item) => item.id !== id));
+  }
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-4xl px-5 py-8">
@@ -79,11 +87,18 @@ export default function HistoryPage() {
 
           <div className="space-y-3">
             {sessions.map((session) => (
-              <button
+              <div
                 key={session.id}
-                type="button"
+                role="button"
+                tabIndex={0}
                 onClick={() => router.push(`/report?id=${session.id}`)}
-                className="w-full rounded-xl border border-white/10 bg-slate-900/70 px-5 py-4 text-left transition-colors hover:border-blue-500/50 hover:bg-slate-900"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    router.push(`/report?id=${session.id}`);
+                  }
+                }}
+                className="w-full cursor-pointer rounded-xl border border-white/10 bg-slate-900/70 px-5 py-4 text-left transition-colors hover:border-blue-500/50 hover:bg-slate-900"
               >
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
@@ -102,10 +117,20 @@ export default function HistoryPage() {
                       </div>
                       <div className="text-xs text-slate-500">综合得分</div>
                     </div>
-                    <ChevronRight className="h-5 w-5 text-slate-600" />
+                    <button
+                      type="button"
+                      className="rounded-md p-2 text-slate-500 hover:bg-red-500/10 hover:text-red-300"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleDelete(session.id);
+                      }}
+                      aria-label="删除这条记录"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         </div>
