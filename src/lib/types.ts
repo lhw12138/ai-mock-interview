@@ -1,10 +1,4 @@
-export type RoleKey =
-  | "ai_pm"
-  | "pm"
-  | "growth_pm"
-  | "data_pm"
-  | "b2b_pm"
-  | "user_pm";
+export type RoleKey = "ai_pm" | "pm" | "agent_dev";
 
 export interface Question {
   id: number;
@@ -88,4 +82,5 @@ export interface InterviewConfig {
   questionCount: number;
   questions: Question[];
   startedAt: string;
+  resume?: string;
 }

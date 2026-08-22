@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import { getQuestionsForRole, ROLE_OPTIONS } from "@/lib/roles";
 import { clearInterviewConfig, saveInterviewConfig } from "@/lib/storage";
 import type { RoleKey } from "@/lib/types";
@@ -25,24 +26,59 @@ export default function HomePage() {
   const [role, setRole] = React.useState<RoleKey>("ai_pm");
   const [questionCount, setQuestionCount] = React.useState<number>(8);
   const [isStarting, setIsStarting] = React.useState(false);
+  const [resume, setResume] = React.useState("");
+  const [startError, setStartError] = React.useState("");
 
   React.useEffect(() => {
     clearInterviewConfig();
   }, []);
 
-  function handleStart() {
+  async function handleStart() {
     if (isStarting) return;
     setIsStarting(true);
+    setStartError("");
 
-    const questions = getQuestionsForRole(role, questionCount);
-    saveInterviewConfig({
-      role,
-      questionCount,
-      questions,
-      startedAt: new Date().toISOString(),
-    });
+    try {
+      let questions = getQuestionsForRole(role, questionCount);
+      const trimmedResume = resume.trim();
 
-    router.push("/interview");
+      if (trimmedResume) {
+        const response = await fetch("/api/resume", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ role, resume: trimmedResume }),
+        });
+        const payload = await response.json();
+
+        if (!response.ok || !payload.question) {
+          throw new Error(payload.error || "简历针对性问题生成失败。");
+        }
+
+        questions = [
+          ...questions,
+          {
+            id: Date.now(),
+            question: payload.question,
+            category: payload.category ?? "简历针对性",
+            answer: payload.answer ?? "",
+          },
+        ];
+      }
+
+      saveInterviewConfig({
+        role,
+        questionCount,
+        questions,
+        startedAt: new Date().toISOString(),
+        resume: trimmedResume || undefined,
+      });
+      router.push("/interview");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "面试准备失败，请重试。";
+      setStartError(message);
+      setIsStarting(false);
+    }
   }
 
   return (
@@ -115,8 +151,8 @@ export default function HomePage() {
                   <div className="mt-1 text-xs text-slate-400">
                     {option.key === "ai_pm"
                       ? "大模型应用 + 通用产品题"
-                      : option.key === "data_pm"
-                        ? "数据与 AI 相关产品题"
+                      : option.key === "agent_dev"
+                        ? "Agent、工具调用与 LLM 应用开发"
                         : "通用产品经理高频题"}
                   </div>
                 </button>
@@ -146,8 +182,26 @@ export default function HomePage() {
             </div>
           </section>
 
+          <section>
+            <div className="mb-3 text-sm font-medium text-slate-300">
+              简历针对性提问
+              <span className="ml-2 text-xs font-normal text-slate-500">可选</span>
+            </div>
+            <Textarea
+              value={resume}
+              onChange={(event) => setResume(event.target.value)}
+              placeholder="粘贴简历内容或关键经历，例如：3年AI产品经验，负责过RAG知识库产品。开始面试后会额外生成一道针对性问题。"
+            />
+          </section>
+
+          {startError && (
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              {startError}
+            </div>
+          )}
+
           <Button size="lg" className="w-full" onClick={handleStart} disabled={isStarting}>
-            {isStarting ? "正在准备题目…" : "开始面试"}
+            {isStarting ? "正在准备面试…" : "开始面试"}
             <ArrowRight className="h-4 w-4" />
           </Button>
 

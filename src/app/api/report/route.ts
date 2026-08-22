@@ -17,7 +17,7 @@ const questionSchema = z.object({
 });
 
 const requestSchema = z.object({
-  role: z.enum(["ai_pm", "pm", "growth_pm", "data_pm", "b2b_pm", "user_pm"]),
+  role: z.enum(["ai_pm", "pm", "agent_dev"]),
   questions: z.array(questionSchema).min(1),
   conversation: z.array(
     z.object({
