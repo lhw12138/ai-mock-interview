@@ -113,7 +113,11 @@ export default function HomePage() {
                 >
                   <div className="text-base font-semibold">{option.label}</div>
                   <div className="mt-1 text-xs text-slate-400">
-                    {option.key === "ai_pm" ? "大模型应用 + 通用产品题" : "通用产品经理高频题"}
+                    {option.key === "ai_pm"
+                      ? "大模型应用 + 通用产品题"
+                      : option.key === "data_pm"
+                        ? "数据与 AI 相关产品题"
+                        : "通用产品经理高频题"}
                   </div>
                 </button>
               ))}

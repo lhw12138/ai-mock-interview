@@ -24,6 +24,7 @@ import {
   loadCustomQuestions,
   updateCustomQuestion,
 } from "@/lib/storage";
+import { getRoleLabel, ROLE_OPTIONS } from "@/lib/roles";
 import type { CustomQuestion, Question, RoleKey } from "@/lib/types";
 
 type DisplayQuestion = Question & {
@@ -222,8 +223,11 @@ export default function QuestionBankPage() {
                   onChange={(event) => setFormRole(event.target.value as RoleKey)}
                   className="h-10 w-full rounded-lg border border-white/10 bg-slate-950 px-3 text-sm text-slate-200"
                 >
-                  <option value="ai_pm">AI产品经理</option>
-                  <option value="pm">产品经理</option>
+                  {ROLE_OPTIONS.map((option) => (
+                    <option key={option.key} value={option.key}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
               </label>
               <label className="flex-1">
@@ -296,8 +300,11 @@ export default function QuestionBankPage() {
           className="h-10 rounded-lg border border-white/10 bg-slate-950 px-3 text-sm text-slate-200"
         >
           <option value="all">全部岗位</option>
-          <option value="ai_pm">AI产品经理</option>
-          <option value="pm">产品经理</option>
+          {ROLE_OPTIONS.map((option) => (
+            <option key={option.key} value={option.key}>
+              {option.label}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -315,7 +322,7 @@ export default function QuestionBankPage() {
                 <div>
                   <div className="mb-1 flex flex-wrap items-center gap-2 text-xs">
                     <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-violet-300">
-                      {question.role === "ai_pm" ? "AI产品经理" : "产品经理"}
+                      {getRoleLabel(question.role)}
                     </span>
                     <span className="text-slate-500">{question.category}</span>
                     {question.custom && (

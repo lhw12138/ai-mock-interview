@@ -1,4 +1,10 @@
-export type RoleKey = "ai_pm" | "pm";
+export type RoleKey =
+  | "ai_pm"
+  | "pm"
+  | "growth_pm"
+  | "data_pm"
+  | "b2b_pm"
+  | "user_pm";
 
 export interface Question {
   id: number;
