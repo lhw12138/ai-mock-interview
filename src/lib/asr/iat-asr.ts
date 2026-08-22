@@ -137,6 +137,10 @@ export class IatAsr implements AsrEngineClient {
   }
 
   private async startCapture(): Promise<void> {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("当前浏览器无法访问麦克风，请使用 HTTPS 或 localhost 访问。");
+    }
+
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: true,
