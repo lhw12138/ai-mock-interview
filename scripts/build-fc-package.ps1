@@ -19,6 +19,11 @@ New-Item -ItemType Directory -Force fc-package | Out-Null
 Copy-Item -Recurse ".next\standalone\*" "fc-package\"
 Copy-Item -Recurse ".next\static" "fc-package\.next\static"
 if (Test-Path public) { Copy-Item -Recurse public "fc-package\public" }
+if (Test-Path ".node-runtime\node") {
+  Copy-Item ".node-runtime\node" "fc-package\node" -Force
+} else {
+  throw "Missing .node-runtime\node. Run scripts\prepare-node-runtime.ps1 first."
+}
 if (Test-Path fc-package.zip) { Remove-Item -Force fc-package.zip }
 Compress-Archive -Path "fc-package\*" -DestinationPath "fc-package.zip" -Force
-Write-Host "部署包已生成: fc-package.zip"
+Write-Host "Package ready: fc-package.zip"

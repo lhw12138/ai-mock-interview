@@ -23,6 +23,7 @@ import {
 } from "@/lib/storage";
 import type { ModelConfig, RoleKey } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { trackAnalytics } from "@/lib/analytics";
 
 const QUESTION_COUNTS = [5, 8, 10] as const;
 const DEFAULT_MODEL_CONFIG: ModelConfig = {
@@ -193,6 +194,11 @@ export default function HomePage() {
         modelConfig,
       });
       saveModelConfig(modelConfig);
+      trackAnalytics({
+        type: "interview_start",
+        role,
+        questionCount,
+      });
       router.push("/interview");
     } catch (error) {
       const message =

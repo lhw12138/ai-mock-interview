@@ -32,7 +32,13 @@ function formatDate(value: string): string {
   });
 }
 
-export function ReportShareButton({ session }: { session: InterviewSession }) {
+export function ReportShareButton({
+  session,
+  onShared,
+}: {
+  session: InterviewSession;
+  onShared?: () => void;
+}) {
   const [sharing, setSharing] = React.useState(false);
 
   async function renderPoster(): Promise<Blob | null> {
@@ -126,7 +132,7 @@ export function ReportShareButton({ session }: { session: InterviewSession }) {
     context.fillStyle = "#64748b";
     context.font = "400 24px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
     context.fillText("来自 AI 面试模拟助手", 80, 1320);
-    context.fillText("ai-mock-interview-nu-flax.vercel.app", 80, 1360);
+    context.fillText("ai-mock-interview.cyou", 80, 1360);
 
     return new Promise((resolve) => {
       canvas.toBlob((blob) => resolve(blob), "image/png");
@@ -151,6 +157,7 @@ export function ReportShareButton({ session }: { session: InterviewSession }) {
           text: `我在 AI 面试模拟助手获得 ${session.report.totalScore} 分`,
           files: [file],
         });
+        onShared?.();
         return;
       }
 
@@ -160,6 +167,7 @@ export function ReportShareButton({ session }: { session: InterviewSession }) {
       anchor.download = "ai-interview-report.png";
       anchor.click();
       URL.revokeObjectURL(url);
+      onShared?.();
     } finally {
       setSharing(false);
     }

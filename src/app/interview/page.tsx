@@ -40,6 +40,7 @@ import type {
 import { getRoleLabel } from "@/lib/roles";
 import { cn, createId } from "@/lib/utils";
 import { useAsr } from "@/lib/asr/use-asr";
+import { trackAnalytics } from "@/lib/analytics";
 
 export default function InterviewPage() {
   const router = useRouter();
@@ -60,6 +61,8 @@ export default function InterviewPage() {
   const messagesEndRef = React.useRef<HTMLDivElement | null>(null);
   const lastPayloadRef = React.useRef<InterviewRequest | null>(null);
   const retryCountRef = React.useRef(0);
+  const questionShownAtRef = React.useRef<number>(Date.now());
+  const completedTrackedRef = React.useRef(false);
   const latestRef = React.useRef({
     config,
     currentIndex,
@@ -116,6 +119,18 @@ export default function InterviewPage() {
       setIsGeneratingReport(true);
       setReportFailed(false);
       setPageError("");
+
+      if (!completedTrackedRef.current) {
+        completedTrackedRef.current = true;
+        trackAnalytics({
+          type: "interview_complete",
+          answeredCount: currentAnsweredIds.length,
+          totalDurationMs: Math.max(
+            0,
+            Date.now() - new Date(currentConfig.startedAt).getTime(),
+          ),
+        });
+      }
 
       const answeredQuestions = currentConfig.questions.filter((question) =>
         currentAnsweredIds.includes(question.id),
@@ -200,6 +215,11 @@ export default function InterviewPage() {
       : state.conversation;
 
     if (action === "follow_up") {
+      trackAnalytics({
+        type: "follow_up_shown",
+        questionIndex: state.currentIndex,
+        followUpRound: state.followUpCount + 1,
+      });
       setConversation(nextConversation);
       setFollowUpCount((count) => count + 1);
     } else if (isLast) {
@@ -207,6 +227,7 @@ export default function InterviewPage() {
       void generateReport(state.config, nextConversation, state.answeredIds);
     } else {
       setConversation(nextConversation);
+      questionShownAtRef.current = Date.now();
       setCurrentIndex((index) => index + 1);
       setFollowUpCount(0);
     }
@@ -270,6 +291,7 @@ export default function InterviewPage() {
     setConfig(loaded);
     setConversation([initialMessage]);
     setAnsweredIds([]);
+    questionShownAtRef.current = Date.now();
     latestRef.current = {
       config: loaded,
       currentIndex: 0,
@@ -353,6 +375,12 @@ export default function InterviewPage() {
       conversation: nextConversation,
       currentAnswer: text,
     };
+    trackAnalytics({
+      type: "answer_submit",
+      questionIndex: currentIndex,
+      inputType: inputMode,
+      durationMs: Math.max(0, Date.now() - questionShownAtRef.current),
+    });
     lastPayloadRef.current = payload;
     retryCountRef.current = 0;
     submit(payload);

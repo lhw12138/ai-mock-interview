@@ -11,12 +11,22 @@ import { getLatestValidSession, getSessionById } from "@/lib/storage";
 import { getRoleLabel } from "@/lib/roles";
 import { getDimensionDefs } from "@/lib/score";
 import type { InterviewSession } from "@/lib/types";
+import {
+  computePersonalStats,
+  loadAnalytics,
+  markReportShared,
+  trackAnalytics,
+  type PersonalStats,
+} from "@/lib/analytics";
 
 export default function ReportPage() {
   const router = useRouter();
   const [session, setSession] = React.useState<InterviewSession | null>(null);
   const [checking, setChecking] = React.useState(true);
   const [loadError, setLoadError] = React.useState("");
+  const [personalStats, setPersonalStats] =
+    React.useState<PersonalStats | null>(null);
+  const reportedRef = React.useRef(false);
 
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -29,6 +39,15 @@ export default function ReportPage() {
       return;
     }
     setSession(target);
+    if (!reportedRef.current) {
+      reportedRef.current = true;
+      trackAnalytics({
+        type: "report_viewed",
+        score: target.report.totalScore,
+        didShare: false,
+      });
+    }
+    setPersonalStats(computePersonalStats(loadAnalytics()));
     setChecking(false);
   }, [router]);
 
@@ -119,9 +138,57 @@ export default function ReportPage() {
             <RotateCcw className="h-4 w-4" />
             再练一次
           </Button>
-          <ReportShareButton session={session} />
+          <ReportShareButton
+            session={session}
+            onShared={() => markReportShared()}
+          />
         </div>
       </div>
+
+      {personalStats && (
+        <Card className="mb-6 print-hidden">
+          <CardHeader>
+            <CardTitle>我的面试统计</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              {[
+                { label: "完成场次", value: String(personalStats.interviewCompletes) },
+                {
+                  label: "面试完成率",
+                  value: `${Math.round(personalStats.completionRate * 100)}%`,
+                },
+                {
+                  label: "平均面试时长",
+                  value: `${personalStats.avgDurationMin.toFixed(1)} 分钟`,
+                },
+                {
+                  label: "语音使用率",
+                  value: `${Math.round(personalStats.voiceRate * 100)}%`,
+                },
+                {
+                  label: "7天内完成场次",
+                  value: String(personalStats.last7DaysCompletes),
+                },
+                { label: "平均得分", value: String(personalStats.avgScore) },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-xl bg-white/5 px-4 py-3 text-center"
+                >
+                  <div className="text-xl font-semibold text-blue-300">
+                    {item.value}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">{item.label}</div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-slate-500">
+              统计仅保存在本机浏览器，不会上传到服务器。
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="mb-6 overflow-hidden">
         <CardContent className="p-6 sm:p-8">

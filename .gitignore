@@ -14,6 +14,13 @@
 /.next.bak*/
 /out/
 
+# 本地 Node 运行时（仅用于阿里云函数计算打包，不提交到 git）
+/.node-runtime/
+
+# 阿里云函数计算部署包（构建产物，不提交到 git）
+/fc-package/
+/fc-package.zip
+
 # production
 /build
 
