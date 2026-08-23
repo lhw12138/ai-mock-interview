@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,9 +16,8 @@ export default function RootLayout({
     <html lang="zh-CN">
       <body className="antialiased">
         {children}
-        <Script
-          id="baidu-analytics"
-          strategy="afterInteractive"
+        <script
+          async
           src="https://hm.baidu.com/hm.js?a650d747ca84cbab28e308e3bb99e71a"
         />
       </body>
