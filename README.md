@@ -87,6 +87,29 @@ docker compose up -d --build
 
 6. 等待 1-2 分钟，Caddy 会自动申请 HTTPS 证书，访问 `https://你的域名` 即可。
 
+## 阿里云函数计算（FC）按量托管（免备案、无请求不收费）
+
+适合不想买服务器的情况：按实际使用量计费，无请求不收费，新用户每月有免费额度，默认域名国内可直接访问且无需备案。
+
+1. 在项目根目录运行打包脚本，生成 `fc-package.zip`：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build-fc-package.ps1
+```
+
+2. 登录阿里云控制台，开通「函数计算 FC」，选择靠近你用户的区域（如上海 / 杭州，速度更快；默认域名免备案）。
+3. 创建函数：
+   - 运行环境：**自定义运行时**（Custom Runtime）
+   - 代码上传：选择本地 ZIP 包，上传 `fc-package.zip`
+   - 启动命令：`node server.js`
+   - 监听端口：`9000`
+   - 内存建议：512 MB 及以上
+   - 最小实例数：0（无请求不收费，首次访问稍慢属正常）
+4. 在函数配置的环境变量中填入：
+   - `DEEPSEEK_API_KEY`、`AI_MODEL=deepseek-v4-flash`、`AI_BASE_URL=https://api.deepseek.com`
+   - 讯飞语音：`XF_APPID`、`XF_API_KEY`、`XF_API_SECRET`
+5. 创建完成后，使用控制台提供的默认域名访问；后续要绑定自己的域名时，大陆区域需要完成 ICP 备案（可改用香港区域规避）。
+
 ## 当前范围
 
 - 首页：选择岗位（4 个岗位）、题目数量（5/8/10 题），可选填写简历并按难度生成针对性提问
