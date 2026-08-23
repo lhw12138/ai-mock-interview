@@ -90,10 +90,45 @@ function saveAnalytics(events: AnalyticsEvent[]): void {
   }
 }
 
+function pushToBaidu(
+  category: string,
+  action: string,
+  label?: string,
+  value?: number,
+): void {
+  if (typeof window === "undefined") return;
+  const tracker = (window as unknown as { _hmt?: unknown[] })._hmt;
+  if (!Array.isArray(tracker)) return;
+  tracker.push(["_trackEvent", category, action, label, value]);
+}
+
 export function trackAnalytics(event: AnalyticsInput): void {
   const events = loadAnalytics();
   events.push({ ...event, timestamp: event.timestamp ?? Date.now() } as AnalyticsEvent);
   saveAnalytics(events);
+
+  switch (event.type) {
+    case "interview_start":
+      pushToBaidu("面试", "开始面试", event.role, event.questionCount);
+      break;
+    case "answer_submit":
+      pushToBaidu(
+        "面试",
+        "提交回答",
+        event.inputType === "voice" ? "语音" : "文字",
+        event.durationMs,
+      );
+      break;
+    case "follow_up_shown":
+      pushToBaidu("面试", "AI追问", `第${event.followUpRound}轮`, event.questionIndex);
+      break;
+    case "interview_complete":
+      pushToBaidu("面试", "完成面试", String(event.answeredCount), event.totalDurationMs);
+      break;
+    case "report_viewed":
+      pushToBaidu("报告", "查看报告", event.didShare ? "已分享" : "未分享", event.score);
+      break;
+  }
 }
 
 export function markReportShared(): void {

@@ -25,5 +25,7 @@ if (Test-Path ".node-runtime\node") {
   throw "Missing .node-runtime\node. Run scripts\prepare-node-runtime.ps1 first."
 }
 if (Test-Path fc-package.zip) { Remove-Item -Force fc-package.zip }
-Compress-Archive -Path "fc-package\*" -DestinationPath "fc-package.zip" -Force
+# 使用 tar（libarchive）生成标准 zip，避免 Compress-Archive 与阿里云解压器的兼容问题
+tar -a -c -f fc-package.zip -C fc-package server.js package.json node_modules .next public node
+if ($LASTEXITCODE -ne 0) { throw "zip create failed" }
 Write-Host "Package ready: fc-package.zip"
