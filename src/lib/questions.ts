@@ -2,6 +2,8 @@
 // AI面试模拟器 - 面试题库
 // AI产品经理岗位：100题（大模型应用方向50题 + 通用PM 50题）
 // 产品经理岗位：50题（通用PM）
+// AGENT开发工程师岗位：71题
+// 大模型应用开发工程师岗位：65题
 // AI PM题目来源：GitHub/CSDN/掘金/人人都是产品经理/牛客网等15+来源
 // 通用PM题目来源：AI产品经理面试知识库
 // 每道题附参考答案，用于面试后评分报告展示
@@ -13,6 +15,12 @@ export interface Question {
   category: string;
   answer: string;
 }
+
+import { agentDevQuestions } from "./questions-agent";
+import { llmDevQuestions } from "./questions-llm";
+
+export { agentDevQuestions } from "./questions-agent";
+export { llmDevQuestions } from "./questions-llm";
 
 // ============================================================
 // AI产品经理 - 大模型应用方向题库（50题）
@@ -477,9 +485,13 @@ Crazy	Egg：提供网站点击热力图和滚动地图等用户行为分析。
 // 岗位与题库映射表
 // AI产品经理：大模型应用50题 + 通用PM 50题 = 100题
 // 产品经理：通用PM 50题
+// AGENT开发工程师：71题
+// 大模型应用开发工程师：65题
 export const jobQuestionMap: Record<string, Question[]> = {
   "AI产品经理": [...aiProductManagerQuestions, ...productManagerQuestions],
   "产品经理": productManagerQuestions,
+  "AGENT开发工程师": agentDevQuestions,
+  "大模型应用开发工程师": llmDevQuestions,
 };
 
 /**

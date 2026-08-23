@@ -16,6 +16,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import {
   aiProductManagerQuestions,
+  agentDevQuestions,
+  llmDevQuestions,
   productManagerQuestions,
 } from "@/lib/questions";
 import {
@@ -43,12 +45,28 @@ function buildDisplayQuestions(): DisplayQuestion[] {
     role: "pm" as RoleKey,
     custom: false,
   }));
+  const agentQuestions = agentDevQuestions.map((question) => ({
+    ...question,
+    role: "agent_dev" as RoleKey,
+    custom: false,
+  }));
+  const llmQuestions = llmDevQuestions.map((question) => ({
+    ...question,
+    role: "llm_dev" as RoleKey,
+    custom: false,
+  }));
   const customQuestions = loadCustomQuestions().map((question) => ({
     ...question,
     custom: true,
   }));
 
-  return [...customQuestions, ...aiPmQuestions, ...pmQuestions];
+  return [
+    ...customQuestions,
+    ...aiPmQuestions,
+    ...pmQuestions,
+    ...agentQuestions,
+    ...llmQuestions,
+  ];
 }
 
 function normalizeUploadedItem(
@@ -66,7 +84,10 @@ function normalizeUploadedItem(
   }
 
   const role: RoleKey =
-    candidate.role === "pm" || candidate.role === "ai_pm"
+    candidate.role === "pm" ||
+    candidate.role === "ai_pm" ||
+    candidate.role === "agent_dev" ||
+    candidate.role === "llm_dev"
       ? candidate.role
       : "ai_pm";
 
@@ -206,7 +227,7 @@ export default function QuestionBankPage() {
       </div>
 
       <div className="mb-8 text-center">
-        <h1 className="text-3xl font-bold tracking-tight text-white">产品经理面试题库</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-white">面试题库</h1>
         <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-400">
           查看内置题目，也可以上传 JSON 或手动新增、修改自己的题目。自定义题目会参与后续随机抽题。
         </p>

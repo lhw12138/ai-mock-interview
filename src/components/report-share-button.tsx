@@ -4,17 +4,8 @@ import * as React from "react";
 import { Download, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getRoleLabel } from "@/lib/roles";
+import { getDimensionDefs } from "@/lib/score";
 import type { InterviewSession } from "@/lib/types";
-
-const DIMENSIONS = [
-  { key: "logic", label: "逻辑思维" },
-  { key: "productSense", label: "产品 Sense" },
-  { key: "communication", label: "表达沟通" },
-  { key: "aiUnderstanding", label: "AI 理解力" },
-  { key: "adaptability", label: "应变能力" },
-] as const;
-
-type DimensionKey = (typeof DIMENSIONS)[number]["key"];
 
 function roundRect(
   context: CanvasRenderingContext2D,
@@ -98,9 +89,8 @@ export function ReportShareButton({ session }: { session: InterviewSession }) {
     context.textAlign = "left";
 
     let y = 600;
-    DIMENSIONS.forEach((dimension) => {
-      const score =
-        session.report.dimensionScores[dimension.key as DimensionKey].score;
+    getDimensionDefs(session.role).forEach((dimension) => {
+      const score = session.report.dimensionScores[dimension.key]?.score ?? 0;
       const clamped = Math.max(0, Math.min(100, score));
 
       context.fillStyle = "#e2e8f0";

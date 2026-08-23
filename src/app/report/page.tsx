@@ -9,6 +9,7 @@ import { RadarChart } from "@/components/radar-chart";
 import { ReportShareButton } from "@/components/report-share-button";
 import { getLatestValidSession, getSessionById } from "@/lib/storage";
 import { getRoleLabel } from "@/lib/roles";
+import { getDimensionDefs } from "@/lib/score";
 import type { InterviewSession } from "@/lib/types";
 
 export default function ReportPage() {
@@ -30,6 +31,36 @@ export default function ReportPage() {
     setSession(target);
     setChecking(false);
   }, [router]);
+
+  React.useEffect(() => {
+    let previousOpenState: boolean[] = [];
+
+    const openDetailsBeforePrint = () => {
+      const details = Array.from(
+        document.querySelectorAll<HTMLDetailsElement>("details"),
+      );
+      previousOpenState = details.map((element) => element.open);
+      details.forEach((element) => {
+        element.open = true;
+      });
+    };
+
+    const restoreDetailsAfterPrint = () => {
+      document
+        .querySelectorAll<HTMLDetailsElement>("details")
+        .forEach((element, index) => {
+          element.open = previousOpenState[index] ?? false;
+        });
+    };
+
+    window.addEventListener("beforeprint", openDetailsBeforePrint);
+    window.addEventListener("afterprint", restoreDetailsAfterPrint);
+
+    return () => {
+      window.removeEventListener("beforeprint", openDetailsBeforePrint);
+      window.removeEventListener("afterprint", restoreDetailsAfterPrint);
+    };
+  }, []);
 
   if (checking) {
     return (
@@ -59,13 +90,11 @@ export default function ReportPage() {
   const { report } = session;
   const improvements = report.improvementSuggestions ?? [];
   const perQuestion = report.perQuestion ?? [];
-  const dimensionItems = [
-    { key: "logic", label: "逻辑思维", score: report.dimensionScores.logic.score },
-    { key: "productSense", label: "产品 sense", score: report.dimensionScores.productSense.score },
-    { key: "communication", label: "表达沟通", score: report.dimensionScores.communication.score },
-    { key: "aiUnderstanding", label: "AI 理解力", score: report.dimensionScores.aiUnderstanding.score },
-    { key: "adaptability", label: "应变能力", score: report.dimensionScores.adaptability.score },
-  ];
+  const dimensionItems = getDimensionDefs(session.role).map((definition) => ({
+    key: definition.key,
+    label: definition.label,
+    score: report.dimensionScores[definition.key]?.score ?? 0,
+  }));
 
   const createdAt = new Date(session.createdAt).toLocaleString("zh-CN", {
     month: "long",
@@ -133,10 +162,10 @@ export default function ReportPage() {
 
         <div className="space-y-4">
           {dimensionItems.map((item) => {
-            const dimension =
-              report.dimensionScores[
-                item.key as keyof typeof report.dimensionScores
-              ];
+            const dimension = report.dimensionScores[item.key] ?? {
+              score: 0,
+              comment: "该维度暂无评分数据",
+            };
 
             return (
               <Card key={item.key}>
@@ -193,7 +222,9 @@ export default function ReportPage() {
                     </div>
                     <div>
                       <div className="font-medium text-slate-200">{item.question}</div>
-                      <div className="mt-1 text-xs text-slate-500">点击展开详情</div>
+                      <div className="print-hidden mt-1 text-xs text-slate-500">
+                        点击展开详情
+                      </div>
                     </div>
                   </div>
                 </div>

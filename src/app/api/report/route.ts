@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getDeepSeekModel } from "@/lib/ai";
 import { buildReportPrompt } from "@/lib/prompts";
 import { reportSchema } from "@/lib/schemas";
-import { calculateTotalScore } from "@/lib/score";
+import { calculateTotalScore, getDimensionDefs } from "@/lib/score";
 import type { PerQuestionReview } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -16,8 +16,17 @@ const questionSchema = z.object({
   answer: z.string(),
 });
 
+const modelConfigSchema = z
+  .object({
+    baseUrl: z.string().optional(),
+    model: z.string().optional(),
+    apiKey: z.string().optional(),
+  })
+  .optional();
+
 const requestSchema = z.object({
-  role: z.enum(["ai_pm", "pm", "agent_dev"]),
+  role: z.enum(["ai_pm", "pm", "agent_dev", "llm_dev"]),
+  modelConfig: modelConfigSchema,
   questions: z.array(questionSchema).min(1),
   conversation: z.array(
     z.object({
@@ -46,7 +55,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const model = getDeepSeekModel();
+    const model = getDeepSeekModel(body.modelConfig);
     const prompt = buildReportPrompt(body);
 
     const result = await generateObject({
@@ -58,6 +67,16 @@ export async function POST(request: Request) {
       temperature: 0.2,
       maxTokens: 2500,
     });
+
+    const dimensionScores = { ...result.object.dimensionScores };
+    for (const definition of getDimensionDefs(body.role)) {
+      if (!dimensionScores[definition.key]) {
+        dimensionScores[definition.key] = {
+          score: 0,
+          comment: "该维度未能完成评分",
+        };
+      }
+    }
 
     const perQuestion: PerQuestionReview[] = body.questions.map((question, index) => {
       const review = result.object.perQuestion[index] ?? {
@@ -77,8 +96,8 @@ export async function POST(request: Request) {
     });
 
     const report = {
-      totalScore: calculateTotalScore(result.object.dimensionScores),
-      dimensionScores: result.object.dimensionScores,
+      totalScore: calculateTotalScore(dimensionScores, body.role),
+      dimensionScores,
       perQuestion,
       overallFeedback: result.object.overallFeedback,
       improvementSuggestions: result.object.improvementSuggestions,

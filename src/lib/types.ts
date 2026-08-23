@@ -1,4 +1,4 @@
-export type RoleKey = "ai_pm" | "pm" | "agent_dev";
+export type RoleKey = "ai_pm" | "pm" | "agent_dev" | "llm_dev";
 
 export interface Question {
   id: number;
@@ -20,6 +20,7 @@ export interface ChatMessage {
 
 export interface InterviewRequest {
   role: RoleKey;
+  modelConfig?: ModelConfig;
   questions: Question[];
   currentIndex: number;
   totalQuestions: number;
@@ -41,13 +42,7 @@ export interface DimensionScore {
   comment: string;
 }
 
-export interface DimensionScores {
-  logic: DimensionScore;
-  productSense: DimensionScore;
-  communication: DimensionScore;
-  aiUnderstanding: DimensionScore;
-  adaptability: DimensionScore;
-}
+export type DimensionScores = Record<string, DimensionScore>;
 
 export interface PerQuestionReview {
   questionId: number;
@@ -83,4 +78,11 @@ export interface InterviewConfig {
   questions: Question[];
   startedAt: string;
   resume?: string;
+  modelConfig?: ModelConfig;
+}
+
+export interface ModelConfig {
+  baseUrl: string;
+  model: string;
+  apiKey: string;
 }

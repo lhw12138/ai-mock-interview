@@ -4,6 +4,7 @@ import type {
   InterviewConfig,
   InterviewReport,
   InterviewSession,
+  ModelConfig,
   Question,
 } from "./types";
 
@@ -11,6 +12,30 @@ const STORAGE_KEY = "ai-mock-interview:sessions";
 const CONFIG_KEY = "ai-mock-interview:config";
 const BOOKMARK_KEY = "ai-mock-interview:bookmarks";
 const CUSTOM_QUESTION_KEY = "ai-mock-interview:custom-questions";
+const MODEL_CONFIG_KEY = "ai-mock-interview:model-config";
+
+export function loadModelConfig(): ModelConfig | null {
+  if (!isBrowser()) return null;
+
+  try {
+    const raw = window.localStorage.getItem(MODEL_CONFIG_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<ModelConfig>;
+    return {
+      baseUrl:
+        typeof parsed.baseUrl === "string" ? parsed.baseUrl.trim() : "",
+      model: typeof parsed.model === "string" ? parsed.model.trim() : "",
+      apiKey: typeof parsed.apiKey === "string" ? parsed.apiKey.trim() : "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function saveModelConfig(config: ModelConfig): void {
+  if (!isBrowser()) return;
+  window.localStorage.setItem(MODEL_CONFIG_KEY, JSON.stringify(config));
+}
 
 function isBrowser(): boolean {
   return typeof window !== "undefined";
@@ -125,14 +150,8 @@ function isInterviewReport(value: unknown): value is InterviewReport {
   }
 
   const dimensions = candidate.dimensionScores as unknown as Record<string, unknown>;
-  const requiredDimensions = [
-    "logic",
-    "productSense",
-    "communication",
-    "aiUnderstanding",
-    "adaptability",
-  ];
-  if (!requiredDimensions.every((key) => isDimensionScore(dimensions[key]))) {
+  const keys = Object.keys(dimensions);
+  if (keys.length === 0 || !keys.every((key) => isDimensionScore(dimensions[key]))) {
     return false;
   }
 

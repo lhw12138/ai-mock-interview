@@ -3,7 +3,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "AI 面试模拟助手",
-  description: "面向中国产品经理求职者的 AI 模拟面试工具，支持语音与文字作答。",
+  description:
+    "面向求职者的 AI 模拟面试工具，覆盖产品与技术岗位，支持语音与文字作答、多维能力评分与逐题改进建议。",
 };
 
 export default function RootLayout({

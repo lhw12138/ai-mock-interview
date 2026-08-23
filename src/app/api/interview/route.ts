@@ -14,8 +14,17 @@ const questionSchema = z.object({
   answer: z.string(),
 });
 
+const modelConfigSchema = z
+  .object({
+    baseUrl: z.string().optional(),
+    model: z.string().optional(),
+    apiKey: z.string().optional(),
+  })
+  .optional();
+
 const requestSchema = z.object({
-  role: z.enum(["ai_pm", "pm", "agent_dev"]),
+  role: z.enum(["ai_pm", "pm", "agent_dev", "llm_dev"]),
+  modelConfig: modelConfigSchema,
   questions: z.array(questionSchema).min(1),
   currentIndex: z.number().int().min(0),
   totalQuestions: z.number().int().min(1),
@@ -46,8 +55,15 @@ export async function POST(request: Request) {
   }
 
   try {
-    const model = getDeepSeekModel();
-    const prompt = buildInterviewPrompt(body);
+    const modelConfig = body.modelConfig
+      ? {
+          baseUrl: body.modelConfig.baseUrl ?? "",
+          model: body.modelConfig.model ?? "",
+          apiKey: body.modelConfig.apiKey ?? "",
+        }
+      : undefined;
+    const model = getDeepSeekModel(modelConfig);
+    const prompt = buildInterviewPrompt({ ...body, modelConfig });
 
     const result = streamObject({
       model,

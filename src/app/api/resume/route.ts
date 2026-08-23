@@ -7,7 +7,14 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const requestSchema = z.object({
-  role: z.enum(["ai_pm", "pm", "agent_dev"]),
+  role: z.enum(["ai_pm", "pm", "agent_dev", "llm_dev"]),
+  modelConfig: z
+    .object({
+      baseUrl: z.string().optional(),
+      model: z.string().optional(),
+      apiKey: z.string().optional(),
+    })
+    .optional(),
   resume: z.string().min(1),
   difficulty: z.enum(["basic", "intermediate", "advanced"]).default("intermediate"),
 });
@@ -44,7 +51,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const model = getDeepSeekModel();
+    const model = getDeepSeekModel(body.modelConfig);
     const result = await generateObject({
       model,
       schema: outputSchema,

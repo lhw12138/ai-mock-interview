@@ -11,13 +11,10 @@ export const dimensionScoreSchema = z.object({
   comment: z.string(),
 });
 
-export const dimensionScoresSchema = z.object({
-  logic: dimensionScoreSchema,
-  productSense: dimensionScoreSchema,
-  communication: dimensionScoreSchema,
-  aiUnderstanding: dimensionScoreSchema,
-  adaptability: dimensionScoreSchema,
-});
+export const dimensionScoresSchema = z.record(
+  z.string(),
+  dimensionScoreSchema,
+);
 
 export const perQuestionReviewSchema = z.object({
   answerSummary: z.string(),

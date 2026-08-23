@@ -51,16 +51,21 @@ export default function InterviewPage() {
   const [inputMode, setInputMode] = React.useState<"voice" | "text">("voice");
   const [pageError, setPageError] = React.useState("");
   const [isGeneratingReport, setIsGeneratingReport] = React.useState(false);
+  const [reportFailed, setReportFailed] = React.useState(false);
+  const [answeredIds, setAnsweredIds] = React.useState<number[]>([]);
   const [ttsEnabled, setTtsEnabled] = React.useState(false);
   const [speaking, setSpeaking] = React.useState(false);
   const [bookmarked, setBookmarked] = React.useState(false);
 
   const messagesEndRef = React.useRef<HTMLDivElement | null>(null);
+  const lastPayloadRef = React.useRef<InterviewRequest | null>(null);
+  const retryCountRef = React.useRef(0);
   const latestRef = React.useRef({
     config,
     currentIndex,
     followUpCount,
     conversation,
+    answeredIds,
   });
 
   const handleAsrText = React.useCallback((text: string) => {
@@ -106,9 +111,23 @@ export default function InterviewPage() {
     async (
       currentConfig: InterviewConfig,
       currentConversation: ChatMessage[],
+      currentAnsweredIds: number[],
     ) => {
       setIsGeneratingReport(true);
+      setReportFailed(false);
       setPageError("");
+
+      const answeredQuestions = currentConfig.questions.filter((question) =>
+        currentAnsweredIds.includes(question.id),
+      );
+      if (answeredQuestions.length === 0) {
+        setPageError("至少回答一道题后才能生成报告。");
+        setIsGeneratingReport(false);
+        return;
+      }
+
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 90000);
 
       try {
         const response = await fetch("/api/report", {
@@ -116,11 +135,13 @@ export default function InterviewPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             role: currentConfig.role,
-            questions: currentConfig.questions,
+            modelConfig: currentConfig.modelConfig,
+            questions: answeredQuestions,
             conversation: currentConversation,
-            answeredCount: currentConfig.questions.length,
+            answeredCount: answeredQuestions.length,
             totalQuestions: currentConfig.questions.length,
           }),
+          signal: controller.signal,
         });
 
         const payload = await response.json();
@@ -143,10 +164,18 @@ export default function InterviewPage() {
         clearInterviewConfig();
         router.push("/report");
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "评分报告生成失败。";
+        const isTimeout =
+          error instanceof DOMException && error.name === "AbortError";
+        const message = isTimeout
+          ? "生成评分报告超时，请重试。"
+          : error instanceof Error
+            ? error.message
+            : "评分报告生成失败。";
         setPageError(message);
+        setReportFailed(true);
         setIsGeneratingReport(false);
+      } finally {
+        window.clearTimeout(timeout);
       }
     },
     [router],
@@ -175,7 +204,7 @@ export default function InterviewPage() {
       setFollowUpCount((count) => count + 1);
     } else if (isLast) {
       setConversation(nextConversation);
-      void generateReport(state.config, nextConversation);
+      void generateReport(state.config, nextConversation, state.answeredIds);
     } else {
       setConversation(nextConversation);
       setCurrentIndex((index) => index + 1);
@@ -190,7 +219,33 @@ export default function InterviewPage() {
     api: "/api/interview",
     schema: interviewTurnSchema,
     onError: (error) => {
-      setPageError(error.message || "面试官暂时无法响应，请重试。");
+      const message = error.message || "面试官暂时无法响应，请重试。";
+      const isRateLimited = /429|限流|访问量过大|速率限制|rate limit|Too Many Requests/i.test(
+        message,
+      );
+
+      if (isRateLimited && lastPayloadRef.current) {
+        if (retryCountRef.current < 3) {
+          retryCountRef.current += 1;
+          const delay = retryCountRef.current * 6000;
+          setPageError(
+            `模型服务商暂时繁忙（限流），约 ${Math.round(
+              delay / 1000,
+            )} 秒后自动重试（第 ${retryCountRef.current} 次）…`,
+          );
+          window.setTimeout(() => {
+            if (lastPayloadRef.current) {
+              setPageError("");
+              submit(lastPayloadRef.current);
+            }
+          }, delay);
+          return;
+        }
+        setPageError("模型服务商持续繁忙，请稍后手动重试，或改用其他模型。");
+        return;
+      }
+
+      setPageError(message);
     },
     onFinish: ({ object, error }) => {
       if (error || !object) {
@@ -214,11 +269,13 @@ export default function InterviewPage() {
     };
     setConfig(loaded);
     setConversation([initialMessage]);
+    setAnsweredIds([]);
     latestRef.current = {
       config: loaded,
       currentIndex: 0,
       followUpCount: 0,
       conversation: [initialMessage],
+      answeredIds: [],
     };
   }, [router]);
 
@@ -228,8 +285,9 @@ export default function InterviewPage() {
       currentIndex,
       followUpCount,
       conversation,
+      answeredIds,
     };
-  }, [config, currentIndex, followUpCount, conversation]);
+  }, [config, currentIndex, followUpCount, conversation, answeredIds]);
 
   React.useEffect(() => {
     const question = config?.questions[currentIndex];
@@ -269,9 +327,12 @@ export default function InterviewPage() {
     cancelAsr();
     setPageError("");
 
+    const question = config.questions[currentIndex];
     const userMessage: ChatMessage = { role: "user", content: text };
     const nextConversation: ChatMessage[] = [...conversation, userMessage];
+    const nextAnsweredIds = question ? [...answeredIds, question.id] : answeredIds;
     setConversation(nextConversation);
+    setAnsweredIds(nextAnsweredIds);
     setDraft("");
 
     latestRef.current = {
@@ -279,17 +340,22 @@ export default function InterviewPage() {
       currentIndex,
       followUpCount,
       conversation: nextConversation,
+      answeredIds: nextAnsweredIds,
     };
 
-    submit({
+    const payload: InterviewRequest = {
       role: config.role,
+      modelConfig: config.modelConfig,
       questions: config.questions,
       currentIndex,
       totalQuestions: config.questions.length,
       followUpCount,
       conversation: nextConversation,
       currentAnswer: text,
-    });
+    };
+    lastPayloadRef.current = payload;
+    retryCountRef.current = 0;
+    submit(payload);
   }
 
   function handleSkipQuestion() {
@@ -309,8 +375,9 @@ export default function InterviewPage() {
         currentIndex,
         followUpCount,
         conversation: nextConversation,
+        answeredIds,
       };
-      void generateReport(config, nextConversation);
+      void generateReport(config, nextConversation, answeredIds);
       return;
     }
 
@@ -329,6 +396,7 @@ export default function InterviewPage() {
       currentIndex: currentIndex + 1,
       followUpCount: 0,
       conversation: advancedConversation,
+      answeredIds,
     };
   }
 
@@ -347,8 +415,15 @@ export default function InterviewPage() {
       currentIndex,
       followUpCount,
       conversation: nextConversation,
+      answeredIds,
     };
-    void generateReport(config, nextConversation);
+    void generateReport(config, nextConversation, answeredIds);
+  }
+
+  function handleRetryReport() {
+    const state = latestRef.current;
+    if (!state.config || isGeneratingReport) return;
+    void generateReport(state.config, state.conversation, state.answeredIds);
   }
 
   function handleToggleBookmark() {
@@ -512,13 +587,24 @@ export default function InterviewPage() {
                   </button>
                 )}
                 {pageError && (
-                  <button
-                    type="button"
-                    className="mt-1 text-blue-300 hover:text-blue-200"
-                    onClick={() => setPageError("")}
-                  >
-                    关闭提示
-                  </button>
+                  <div className="mt-1 flex gap-3">
+                    {reportFailed && (
+                      <button
+                        type="button"
+                        className="text-blue-300 hover:text-blue-200"
+                        onClick={handleRetryReport}
+                      >
+                        重试生成报告
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="text-blue-300 hover:text-blue-200"
+                      onClick={() => setPageError("")}
+                    >
+                      关闭提示
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
