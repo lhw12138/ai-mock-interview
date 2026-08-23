@@ -1,9 +1,10 @@
 node_modules
 .next
+.next.bak*
 .git
-.vercel
+.gitignore
 .env
-.env.local
-.env.*.local
-npm-debug.log*
-README.md
+.env.*
+dev-server*.log
+*.md
+.vercel

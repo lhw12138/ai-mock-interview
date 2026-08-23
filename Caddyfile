@@ -1,0 +1,5 @@
+# 把下面的 your-domain.com 换成你的域名，或在 docker-compose.yml 里设置 DOMAIN 变量
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy app:3000
+}

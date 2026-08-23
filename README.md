@@ -60,6 +60,33 @@ npm run dev
 
 讯飞语音识别的 WebSocket 由浏览器直连，Vercel 只需承担一个轻量的鉴权接口，适合 Serverless 部署。
 
+## 国内服务器部署（推荐，香港轻量服务器免备案）
+
+如果面向国内用户访问，建议使用香港轻量云服务器（阿里云 / 腾讯云均可，无需备案），通过 Docker + Caddy 一键部署，自动配置 HTTPS。
+
+1. 准备一台香港轻量服务器（建议 2 核 2G 以上），安装 Docker 与 Docker Compose。
+2. 在服务器上拉取代码：
+
+```bash
+git clone https://github.com/lhw12138/ai-mock-interview.git
+cd ai-mock-interview
+```
+
+3. 准备环境变量（把 `.env.example` 复制为 `.env`，填入 DeepSeek 与讯飞密钥，`.env` 不会进入 git）：
+
+```bash
+cp .env.example .env
+```
+
+4. 配置域名：把域名解析到服务器 IP，然后在 `docker-compose.yml` 同级创建 `.env` 时额外设置 `DOMAIN=你的域名`，或直接编辑 `Caddyfile` 顶部域名。
+5. 构建并启动：
+
+```bash
+docker compose up -d --build
+```
+
+6. 等待 1-2 分钟，Caddy 会自动申请 HTTPS 证书，访问 `https://你的域名` 即可。
+
 ## 当前范围
 
 - 首页：选择岗位（4 个岗位）、题目数量（5/8/10 题），可选填写简历并按难度生成针对性提问
