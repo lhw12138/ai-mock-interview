@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { FeedbackLauncher } from "@/components/feedback-launcher";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,6 +17,7 @@ export default function RootLayout({
     <html lang="zh-CN">
       <body className="antialiased">
         {children}
+        <FeedbackLauncher />
         {process.env.NODE_ENV === "production" && (
           <script
             async

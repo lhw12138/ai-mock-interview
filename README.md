@@ -64,6 +64,16 @@ npm run dev
 | `XF_APPID` | 讯飞开放平台应用 AppID | 无 |
 | `XF_API_KEY` | 讯飞应用 APIKey | 无 |
 | `XF_API_SECRET` | 讯飞应用 APISecret | 无 |
+| `FEISHU_FEEDBACK_WEBHOOK_URL` | 飞书群自定义机器人的 Webhook 地址，用于接收站内反馈 | 无 |
+
+## 飞书反馈配置
+
+1. 在飞书创建一个群，进入「群设置 → 群机器人 → 添加机器人 → 自定义机器人」。
+2. 复制机器人生成的 Webhook 地址。
+3. 将地址配置为服务端环境变量 `FEISHU_FEEDBACK_WEBHOOK_URL`。不要写进前端代码、`.env.example` 或提交到 GitHub。
+4. 重新部署后，从页面右下角进入「反馈」并提交一条测试反馈，确认飞书群收到消息。
+
+反馈接口只接受飞书或 Lark 官方 Webhook 域名，并包含同源校验、请求大小限制和基础限流。提交内容不会自动附带简历、面试回答、录音、API Key 或报告全文。
 
 ## 部署到 Vercel
 
@@ -141,6 +151,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build-fc-package.ps1
 - 模型、报告、简历、模型测试与语音鉴权接口包含同源校验、基础限流和请求体大小限制
 - 上游错误会转换为公开错误信息，不直接把服务商响应返回给浏览器
 - 全站启用防嵌套、内容嗅探、来源与摄像头/麦克风权限等安全响应头
+- 站内反馈由服务端转发到飞书群机器人；Webhook 仅保存在服务端环境变量中
 - 运行 `npm run lint`、`npm run typecheck`、`npm test` 和 `npm run build` 完成提交前验证
 
 ## 参与项目

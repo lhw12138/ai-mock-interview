@@ -36,6 +36,12 @@ export type AnalyticsEvent =
       score: number;
       didShare: boolean;
       timestamp: number;
+    }
+  | {
+      type: "feedback_submit";
+      category: string;
+      rating: number;
+      timestamp: number;
     };
 
 const ANALYTICS_KEY = "ai-mock-interview:analytics";
@@ -78,6 +84,12 @@ type AnalyticsInput =
       type: "report_viewed";
       score: number;
       didShare: boolean;
+      timestamp?: number;
+    }
+  | {
+      type: "feedback_submit";
+      category: string;
+      rating: number;
       timestamp?: number;
     };
 
@@ -149,6 +161,9 @@ export function trackAnalytics(event: AnalyticsInput): void {
       break;
     case "report_viewed":
       pushToBaidu("报告", "查看报告", event.didShare ? "已分享" : "未分享", event.score);
+      break;
+    case "feedback_submit":
+      pushToBaidu("反馈", "提交成功", event.category, event.rating);
       break;
   }
 }
