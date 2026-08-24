@@ -1,4 +1,5 @@
 export type RoleKey = "ai_pm" | "pm" | "agent_dev" | "llm_dev";
+export type InterviewMode = "practice" | "simulation";
 
 export interface Question {
   id: number;
@@ -18,6 +19,15 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface AnswerAttempt {
+  questionId: number;
+  question: string;
+  answers: string[];
+  inputTypes: Array<"voice" | "text">;
+  durationMs: number;
+  skipped?: boolean;
+}
+
 export interface InterviewRequest {
   role: RoleKey;
   modelConfig?: ModelConfig;
@@ -27,6 +37,11 @@ export interface InterviewRequest {
   followUpCount: number;
   conversation: ChatMessage[];
   currentAnswer: string;
+  mode?: InterviewMode;
+  seniority?: InterviewConfig["seniority"];
+  interviewRound?: InterviewConfig["interviewRound"];
+  jobDescription?: string;
+  practiceGoal?: string;
 }
 
 export type InterviewAction = "follow_up" | "next_question";
@@ -40,6 +55,8 @@ export interface InterviewTurn {
 export interface DimensionScore {
   score: number;
   comment: string;
+  evidence?: string;
+  confidence?: "low" | "medium" | "high";
 }
 
 export type DimensionScores = Record<string, DimensionScore>;
@@ -51,6 +68,11 @@ export interface PerQuestionReview {
   strengths: string;
   weaknesses: string;
   referenceAnswer: string;
+  userAnswer?: string;
+  evidence?: string;
+  improvedAnswer?: string;
+  score?: number;
+  confidence?: "low" | "medium" | "high";
 }
 
 export interface InterviewReport {
@@ -59,6 +81,11 @@ export interface InterviewReport {
   perQuestion: PerQuestionReview[];
   overallFeedback: string;
   improvementSuggestions: string[];
+  scoreBand?: string;
+  rubricVersion?: string;
+  disclaimer?: string;
+  weeklyGoals?: string[];
+  weakestDimension?: string;
 }
 
 export interface InterviewSession {
@@ -70,6 +97,10 @@ export interface InterviewSession {
   conversation: ChatMessage[];
   report: InterviewReport;
   durationMs: number;
+  answeredCount?: number;
+  status?: "completed" | "ended_early";
+  attempts?: AnswerAttempt[];
+  sourceSessionId?: string;
 }
 
 export interface InterviewConfig {
@@ -79,10 +110,29 @@ export interface InterviewConfig {
   startedAt: string;
   resume?: string;
   modelConfig?: ModelConfig;
+  mode?: InterviewMode;
+  seniority?: "junior" | "mid" | "senior";
+  interviewRound?: "screening" | "professional" | "final";
+  jobDescription?: string;
+  practiceGoal?: string;
+  sourceSessionId?: string;
+  baselineAnswers?: Record<number, string>;
 }
 
 export interface ModelConfig {
   baseUrl: string;
   model: string;
   apiKey: string;
+}
+
+export interface InterviewProgress {
+  config: InterviewConfig;
+  currentIndex: number;
+  followUpCount: number;
+  conversation: ChatMessage[];
+  draft: string;
+  inputMode: "voice" | "text";
+  answeredIds: number[];
+  attempts: AnswerAttempt[];
+  updatedAt: string;
 }

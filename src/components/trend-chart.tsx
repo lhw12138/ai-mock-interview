@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import type { InterviewSession } from "@/lib/types";
+import { getDimensionDefs } from "@/lib/score";
 
 function formatShortDate(value: string): string {
   return new Date(value).toLocaleDateString("zh-CN", {
@@ -58,6 +59,11 @@ export function TrendChart({ sessions }: { sessions: InterviewSession[] }) {
   const areaPath = `${linePath} L ${points[points.length - 1].x} ${
     paddingTop + chartHeight
   } L ${points[0].x} ${paddingTop + chartHeight} Z`;
+  const latest = ordered[ordered.length - 1];
+  const previousSameRole = [...ordered]
+    .slice(0, -1)
+    .reverse()
+    .find((session) => session.role === latest.role);
 
   return (
     <div className="overflow-hidden rounded-xl border border-white/10 bg-slate-950/40 p-4">
@@ -124,6 +130,30 @@ export function TrendChart({ sessions }: { sessions: InterviewSession[] }) {
           </g>
         ))}
       </svg>
+      {previousSameRole && (
+        <div className="mt-3 border-t border-white/10 pt-3">
+          <div className="mb-2 text-xs text-slate-500">最近两次同岗位能力变化</div>
+          <div className="flex flex-wrap gap-2">
+            {getDimensionDefs(latest.role).map((dimension) => {
+              const current = latest.report.dimensionScores[dimension.key]?.score ?? 0;
+              const previous =
+                previousSameRole.report.dimensionScores[dimension.key]?.score ?? 0;
+              const delta = current - previous;
+              return (
+                <span
+                  key={dimension.key}
+                  className="rounded-full bg-white/5 px-3 py-1 text-xs text-slate-300"
+                >
+                  {dimension.label}{" "}
+                  <span className={delta >= 0 ? "text-emerald-300" : "text-amber-300"}>
+                    {delta >= 0 ? "+" : ""}{delta}
+                  </span>
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

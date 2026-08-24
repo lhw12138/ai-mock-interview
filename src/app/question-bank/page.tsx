@@ -34,6 +34,12 @@ type DisplayQuestion = Question & {
   custom: boolean;
 };
 
+const MAX_IMPORT_BYTES = 1024 * 1024;
+const MAX_CUSTOM_QUESTIONS = 500;
+const MAX_QUESTION_LENGTH = 2000;
+const MAX_ANSWER_LENGTH = 10000;
+const MAX_CATEGORY_LENGTH = 200;
+
 function buildDisplayQuestions(): DisplayQuestion[] {
   const aiPmQuestions = aiProductManagerQuestions.map((question) => ({
     ...question,
@@ -78,7 +84,13 @@ function normalizeUploadedItem(
 
   if (
     typeof candidate.question !== "string" ||
-    typeof candidate.answer !== "string"
+    typeof candidate.answer !== "string" ||
+    candidate.question.trim().length === 0 ||
+    candidate.question.length > MAX_QUESTION_LENGTH ||
+    candidate.answer.trim().length === 0 ||
+    candidate.answer.length > MAX_ANSWER_LENGTH ||
+    (typeof candidate.category === "string" &&
+      candidate.category.length > MAX_CATEGORY_LENGTH)
   ) {
     return null;
   }
@@ -111,6 +123,7 @@ export default function QuestionBankPage() {
   const [formAnswer, setFormAnswer] = React.useState("");
   const [editingId, setEditingId] = React.useState<number | null>(null);
   const [notice, setNotice] = React.useState("");
+  const [visibleCount, setVisibleCount] = React.useState(24);
 
   React.useEffect(() => {
     setQuestions(buildDisplayQuestions());
@@ -135,6 +148,14 @@ export default function QuestionBankPage() {
       setNotice("请填写题目和参考答案。");
       return;
     }
+    if (
+      formQuestion.length > MAX_QUESTION_LENGTH ||
+      formAnswer.length > MAX_ANSWER_LENGTH ||
+      formCategory.length > MAX_CATEGORY_LENGTH
+    ) {
+      setNotice("题目、分类或参考答案超过长度限制，请精简后再保存。");
+      return;
+    }
 
     const question: CustomQuestion = {
       id: editingId ?? Date.now(),
@@ -144,10 +165,14 @@ export default function QuestionBankPage() {
       answer: formAnswer.trim(),
     };
 
-    if (editingId === null) {
-      addCustomQuestion(question);
-    } else {
-      updateCustomQuestion(question);
+    const saved =
+      editingId === null
+        ? addCustomQuestion(question)
+        : updateCustomQuestion(question);
+
+    if (!saved) {
+      setNotice("保存失败：本机存储空间不足，请导出备份并清理旧数据后重试。");
+      return;
     }
 
     setNotice(editingId === null ? "题目已添加。" : "题目已更新。");
@@ -166,8 +191,12 @@ export default function QuestionBankPage() {
 
   function handleDelete(question: DisplayQuestion): void {
     if (!window.confirm("确定要删除这道自定义题目吗？")) return;
-    deleteCustomQuestion(question.id);
-    setNotice("题目已删除。");
+    const deleted = deleteCustomQuestion(question.id);
+    setNotice(
+      deleted
+        ? "题目已删除。"
+        : "删除失败：浏览器暂时无法写入本机存储。",
+    );
     refresh();
   }
 
@@ -176,6 +205,10 @@ export default function QuestionBankPage() {
     if (!file) return;
 
     try {
+      if (file.size > MAX_IMPORT_BYTES) {
+        setNotice("题库文件过大，单次最多导入 1 MB。");
+        return;
+      }
       const text = await file.text();
       const parsed = JSON.parse(text) as unknown[];
       if (!Array.isArray(parsed)) {
@@ -184,6 +217,7 @@ export default function QuestionBankPage() {
       }
 
       const validQuestions = parsed
+        .slice(0, MAX_CUSTOM_QUESTIONS)
         .map(normalizeUploadedItem)
         .filter((item): item is CustomQuestion => item !== null);
 
@@ -192,7 +226,14 @@ export default function QuestionBankPage() {
         return;
       }
 
-      validQuestions.forEach((question) => addCustomQuestion(question));
+      const failedCount = validQuestions.reduce(
+        (count, question) => count + (addCustomQuestion(question) ? 0 : 1),
+        0,
+      );
+      if (failedCount > 0) {
+        setNotice("导入未完成：本机存储空间不足，部分题目没有保存。");
+        return;
+      }
       setNotice(`成功导入 ${validQuestions.length} 道题目。`);
       event.target.value = "";
       refresh();
@@ -212,6 +253,12 @@ export default function QuestionBankPage() {
       return roleMatches && textMatches;
     });
   }, [questions, roleFilter, search]);
+
+  React.useEffect(() => {
+    setVisibleCount(24);
+  }, [roleFilter, search]);
+
+  const visibleQuestions = filteredQuestions.slice(0, visibleCount);
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-5xl px-5 py-8">
@@ -255,6 +302,7 @@ export default function QuestionBankPage() {
                 <span className="mb-1 block text-xs text-slate-400">分类</span>
                 <input
                   value={formCategory}
+                  maxLength={MAX_CATEGORY_LENGTH}
                   onChange={(event) => setFormCategory(event.target.value)}
                   placeholder="例如：用户增长"
                   className="h-10 w-full rounded-lg border border-white/10 bg-slate-950 px-3 text-sm text-slate-200 placeholder:text-slate-600"
@@ -266,6 +314,7 @@ export default function QuestionBankPage() {
               <span className="mb-1 block text-xs text-slate-400">题目</span>
               <Textarea
                 value={formQuestion}
+                maxLength={MAX_QUESTION_LENGTH}
                 onChange={(event) => setFormQuestion(event.target.value)}
                 placeholder="输入面试题目"
               />
@@ -275,6 +324,7 @@ export default function QuestionBankPage() {
               <span className="mb-1 block text-xs text-slate-400">参考答案</span>
               <Textarea
                 value={formAnswer}
+                maxLength={MAX_ANSWER_LENGTH}
                 onChange={(event) => setFormAnswer(event.target.value)}
                 placeholder="输入参考思路或参考答案"
               />
@@ -310,8 +360,10 @@ export default function QuestionBankPage() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
           <input
             value={search}
+            maxLength={200}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="搜索题目或分类"
+            aria-label="搜索题目或分类"
             className="h-10 w-full rounded-lg border border-white/10 bg-slate-950 pl-10 pr-3 text-sm text-slate-200 placeholder:text-slate-600"
           />
         </div>
@@ -319,6 +371,7 @@ export default function QuestionBankPage() {
           value={roleFilter}
           onChange={(event) => setRoleFilter(event.target.value as "all" | RoleKey)}
           className="h-10 rounded-lg border border-white/10 bg-slate-950 px-3 text-sm text-slate-200"
+          aria-label="按岗位筛选题目"
         >
           <option value="all">全部岗位</option>
           {ROLE_OPTIONS.map((option) => (
@@ -330,13 +383,24 @@ export default function QuestionBankPage() {
       </div>
 
       {notice && (
-        <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+        <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200" role="status" aria-live="polite">
           {notice}
         </div>
       )}
 
+      <div className="mb-3 text-sm text-slate-500">
+        找到 {filteredQuestions.length} 道题，当前显示 {visibleQuestions.length} 道
+      </div>
+
+      {filteredQuestions.length === 0 ? (
+        <Card>
+          <CardContent className="px-6 py-12 text-center text-sm text-slate-400">
+            没有找到匹配题目，请尝试缩短关键词或切换岗位。
+          </CardContent>
+        </Card>
+      ) : (
       <div className="space-y-4">
-        {filteredQuestions.map((question) => (
+        {visibleQuestions.map((question) => (
           <Card key={`${question.role}-${question.id}`}>
             <CardContent className="p-5">
               <div className="mb-3 flex items-start justify-between gap-3">
@@ -388,7 +452,18 @@ export default function QuestionBankPage() {
             </CardContent>
           </Card>
         ))}
+        {visibleCount < filteredQuestions.length && (
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full"
+            onClick={() => setVisibleCount((count) => count + 24)}
+          >
+            再显示 24 道
+          </Button>
+        )}
       </div>
+      )}
     </main>
   );
 }

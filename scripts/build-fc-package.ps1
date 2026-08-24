@@ -26,6 +26,11 @@ if (Test-Path ".node-runtime\node") {
 }
 if (Test-Path fc-package.zip) { Remove-Item -Force fc-package.zip }
 # 使用 tar（libarchive）生成标准 zip，避免 Compress-Archive 与阿里云解压器的兼容问题
-tar -a -c -f fc-package.zip -C fc-package server.js package.json node_modules .next public node
+$archiveItems = @("server.js", "package.json", "node_modules", ".next", "node")
+if (Test-Path "fc-package\public") {
+  $archiveItems += "public"
+}
+
+tar -a -c -f fc-package.zip -C fc-package @archiveItems
 if ($LASTEXITCODE -ne 0) { throw "zip create failed" }
 Write-Host "Package ready: fc-package.zip"

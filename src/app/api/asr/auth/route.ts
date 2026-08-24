@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
+import {
+  enforceRateLimit,
+  enforceSameOriginRequest,
+} from "@/lib/api-security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -7,7 +11,17 @@ export const dynamic = "force-dynamic";
 const HOST = "iat-api.xfyun.cn";
 const PATH = "/v2/iat";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const invalidRequest = enforceSameOriginRequest(request);
+  if (invalidRequest) return invalidRequest;
+
+  const rateLimited = enforceRateLimit(request, {
+    bucket: "asr-auth",
+    limit: 30,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (rateLimited) return rateLimited;
+
   const appId = process.env.XF_APPID;
   const apiKey = process.env.XF_API_KEY;
   const apiSecret = process.env.XF_API_SECRET;

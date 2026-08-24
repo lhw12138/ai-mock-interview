@@ -28,6 +28,7 @@ function int16ToBase64(input: Int16Array): string {
 }
 
 export class IatAsr implements AsrEngineClient {
+  private authController: AbortController | null = null;
   private websocket: WebSocket | null = null;
   private audioContext: AudioContext | null = null;
   private mediaStream: MediaStream | null = null;
@@ -58,9 +59,11 @@ export class IatAsr implements AsrEngineClient {
     if (this.disposed || this.listening) return;
 
     try {
+      this.authController = new AbortController();
       const authResponse = await fetch("/api/asr/auth", {
         method: "GET",
         cache: "no-store",
+        signal: this.authController.signal,
       });
       const authPayload = (await authResponse.json()) as
         | IatAuthResponse
@@ -75,10 +78,28 @@ export class IatAsr implements AsrEngineClient {
         return;
       }
 
+      const signedUrl = new URL(authPayload.url);
+      if (
+        signedUrl.protocol !== "wss:" ||
+        signedUrl.hostname !== "iat-api.xfyun.cn" ||
+        signedUrl.pathname !== "/v2/iat" ||
+        typeof authPayload.appId !== "string" ||
+        !authPayload.appId
+      ) {
+        throw new Error("语音鉴权返回了无效地址。");
+      }
+
+      if (this.disposed || this.ending) return;
+
       await this.startCapture();
+      if (this.disposed || this.ending) {
+        this.cleanupAudio();
+        return;
+      }
       this.openWebSocket(authPayload);
     } catch (error) {
       this.cleanupAudio();
+      if (this.disposed || this.ending) return;
       const name = error instanceof DOMException ? error.name : undefined;
       const message = error instanceof Error ? error.message : String(error);
 
@@ -93,12 +114,16 @@ export class IatAsr implements AsrEngineClient {
           fatal: true,
         });
       }
+    } finally {
+      this.authController = null;
     }
   }
 
   stop(): void {
     this.listening = false;
     this.ending = true;
+    this.authController?.abort();
+    this.authController = null;
     this.stopSendTimer();
     const websocket = this.websocket;
 
@@ -129,6 +154,9 @@ export class IatAsr implements AsrEngineClient {
   dispose(): void {
     this.disposed = true;
     this.listening = false;
+    this.ending = true;
+    this.authController?.abort();
+    this.authController = null;
     this.stopSendTimer();
     this.pcmQueue = [];
     this.queuedSampleCount = 0;
@@ -148,6 +176,11 @@ export class IatAsr implements AsrEngineClient {
         autoGainControl: true,
       },
     });
+
+    if (this.disposed || this.ending) {
+      stream.getTracks().forEach((track) => track.stop());
+      return;
+    }
 
     const AudioCtx =
       window.AudioContext ??

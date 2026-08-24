@@ -1,0 +1,41 @@
+name: 体验反馈
+description: 告诉我们评分是否可信、流程哪里难用、下一步训练是否清楚
+title: "[体验] "
+labels: ["feedback"]
+body:
+  - type: dropdown
+    id: role
+    attributes:
+      label: 练习岗位
+      options:
+        - AI 产品经理
+        - 产品经理
+        - AGENT 开发工程师
+        - 大模型应用开发工程师
+    validations:
+      required: true
+  - type: textarea
+    id: trust
+    attributes:
+      label: 哪个评分或建议最让你不相信？为什么？
+    validations:
+      required: true
+  - type: textarea
+    id: friction
+    attributes:
+      label: 哪一步最想退出或最难用？
+    validations:
+      required: true
+  - type: dropdown
+    id: next_step
+    attributes:
+      label: 看完报告后，你知道下一步练什么吗？
+      options:
+        - 非常清楚
+        - 大致清楚
+        - 不清楚
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: "谢谢你的真实反馈。请勿粘贴简历、API Key 或完整作答内容。"

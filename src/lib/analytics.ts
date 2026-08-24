@@ -22,6 +22,13 @@ export type AnalyticsEvent =
       type: "interview_complete";
       answeredCount: number;
       totalDurationMs: number;
+      targeted?: boolean;
+      timestamp: number;
+    }
+  | {
+      type: "targeted_practice_start";
+      sourceSessionId: string;
+      practiceGoal: string;
       timestamp: number;
     }
   | {
@@ -58,6 +65,13 @@ type AnalyticsInput =
       type: "interview_complete";
       answeredCount: number;
       totalDurationMs: number;
+      targeted?: boolean;
+      timestamp?: number;
+    }
+  | {
+      type: "targeted_practice_start";
+      sourceSessionId: string;
+      practiceGoal: string;
       timestamp?: number;
     }
   | {
@@ -123,7 +137,15 @@ export function trackAnalytics(event: AnalyticsInput): void {
       pushToBaidu("面试", "AI追问", `第${event.followUpRound}轮`, event.questionIndex);
       break;
     case "interview_complete":
-      pushToBaidu("面试", "完成面试", String(event.answeredCount), event.totalDurationMs);
+      pushToBaidu(
+        "面试",
+        event.targeted ? "完成针对性复练" : "完成面试",
+        String(event.answeredCount),
+        event.totalDurationMs,
+      );
+      break;
+    case "targeted_practice_start":
+      pushToBaidu("复练", "启动弱项训练", event.practiceGoal);
       break;
     case "report_viewed":
       pushToBaidu("报告", "查看报告", event.didShare ? "已分享" : "未分享", event.score);
@@ -153,6 +175,9 @@ export interface PersonalStats {
   last7DaysStarts: number;
   last7DaysCompletes: number;
   avgScore: number;
+  targetedStarts: number;
+  targetedCompletes: number;
+  targetedCompletionRate: number;
 }
 
 export function computePersonalStats(events: AnalyticsEvent[]): PersonalStats {
@@ -160,6 +185,10 @@ export function computePersonalStats(events: AnalyticsEvent[]): PersonalStats {
   const completes = events.filter((event) => event.type === "interview_complete");
   const answers = events.filter((event) => event.type === "answer_submit");
   const reports = events.filter((event) => event.type === "report_viewed");
+  const targetedStarts = events.filter(
+    (event) => event.type === "targeted_practice_start",
+  );
+  const targetedCompletes = completes.filter((event) => event.targeted);
   const voiceAnswers = answers.filter((event) => event.inputType === "voice");
   const sevenDays = 7 * 24 * 60 * 60 * 1000;
   const now = Date.now();
@@ -189,5 +218,10 @@ export function computePersonalStats(events: AnalyticsEvent[]): PersonalStats {
         ? Math.round(reports.reduce((sum, event) => sum + event.score, 0) /
             reports.length)
         : 0,
+    targetedStarts: targetedStarts.length,
+    targetedCompletes: targetedCompletes.length,
+    targetedCompletionRate: targetedStarts.length
+      ? targetedCompletes.length / targetedStarts.length
+      : 0,
   };
 }

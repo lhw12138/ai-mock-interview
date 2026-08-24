@@ -16,7 +16,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { getQuestionsForRole, ROLE_OPTIONS } from "@/lib/roles";
 import {
+  clearAllLocalData,
   clearInterviewConfig,
+  clearInterviewProgress,
+  exportLocalData,
+  importLocalData,
+  isApiKeyRemembered,
+  loadInterviewProgress,
   loadModelConfig,
   saveInterviewConfig,
   saveModelConfig,
@@ -26,6 +32,9 @@ import { cn } from "@/lib/utils";
 import { trackAnalytics } from "@/lib/analytics";
 
 const QUESTION_COUNTS = [5, 8, 10] as const;
+const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
+const MAX_RESUME_LENGTH = 30000;
+const MAX_JD_LENGTH = 12000;
 const DEFAULT_MODEL_CONFIG: ModelConfig = {
   baseUrl: "https://api.deepseek.com",
   model: "deepseek-v4-flash",
@@ -45,6 +54,15 @@ const MODEL_PRESETS = {
 } as const;
 type ModelPresetKey = keyof typeof MODEL_PRESETS | "custom";
 
+function isDeepSeekService(baseUrl: string): boolean {
+  try {
+    const hostname = new URL(baseUrl).hostname.toLowerCase();
+    return hostname === "api.deepseek.com" || hostname.endsWith(".deepseek.com");
+  } catch {
+    return false;
+  }
+}
+
 export default function HomePage() {
   const router = useRouter();
   const [role, setRole] = React.useState<RoleKey>("ai_pm");
@@ -55,53 +73,132 @@ export default function HomePage() {
   const [difficulty, setDifficulty] = React.useState<
     "basic" | "intermediate" | "advanced"
   >("intermediate");
+  const [mode, setMode] = React.useState<"practice" | "simulation">("practice");
+  const [seniority, setSeniority] = React.useState<"junior" | "mid" | "senior">("mid");
+  const [interviewRound, setInterviewRound] = React.useState<
+    "screening" | "professional" | "final"
+  >("professional");
+  const [jobDescription, setJobDescription] = React.useState("");
   const [modelConfig, setModelConfig] =
     React.useState<ModelConfig>(DEFAULT_MODEL_CONFIG);
   const [startError, setStartError] = React.useState("");
+  const [rememberApiKey, setRememberApiKey] = React.useState(false);
+  const [hasRecoverableInterview, setHasRecoverableInterview] =
+    React.useState(false);
   const [modelTest, setModelTest] = React.useState<{
     status: "idle" | "testing" | "ok" | "fail";
     message: string;
   }>({ status: "idle", message: "" });
-
-  React.useEffect(() => {
-    clearInterviewConfig();
-  }, []);
+  const startLockedRef = React.useRef(false);
+  const modelTestLockedRef = React.useRef(false);
+  const savedModelConfigRef = React.useRef<ModelConfig | null>(null);
+  const savedKeyRememberedRef = React.useRef(false);
 
   React.useEffect(() => {
     const saved = loadModelConfig();
-    if (saved) {
-      setModelConfig({
-        ...DEFAULT_MODEL_CONFIG,
-        ...saved,
-      });
-    }
+    savedModelConfigRef.current = saved;
+    savedKeyRememberedRef.current = isApiKeyRemembered();
+    // 新打开首页始终使用站方 DeepSeek。历史配置只有在用户主动
+    // 切换服务商时才恢复，避免无提示地用上次的智谱或自定义模型。
+    setModelConfig(DEFAULT_MODEL_CONFIG);
+    setRememberApiKey(false);
+    setHasRecoverableInterview(Boolean(loadInterviewProgress()));
   }, []);
 
   function resetModelConfig(): void {
     setModelConfig(DEFAULT_MODEL_CONFIG);
-    saveModelConfig(DEFAULT_MODEL_CONFIG);
+    setRememberApiKey(false);
+    savedModelConfigRef.current = null;
+    savedKeyRememberedRef.current = false;
+    saveModelConfig(DEFAULT_MODEL_CONFIG, { rememberApiKey: false });
+  }
+
+  function discardRecoverableInterview(): void {
+    clearInterviewProgress();
+    clearInterviewConfig();
+    setHasRecoverableInterview(false);
+  }
+
+  function downloadLocalData(): void {
+    const blob = new Blob([exportLocalData()], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `ai-interview-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function clearDeviceData(): void {
+    if (!window.confirm("确定清除本机的面试记录、题库、收藏和模型配置吗？此操作无法撤销。")) {
+      return;
+    }
+    clearAllLocalData();
+    setModelConfig(DEFAULT_MODEL_CONFIG);
+    setRememberApiKey(false);
+    setHasRecoverableInterview(false);
+  }
+
+  async function importDeviceData(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ): Promise<void> {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      if (file.size > MAX_BACKUP_BYTES) {
+        throw new Error("备份文件过大");
+      }
+      const result = importLocalData(await file.text());
+      window.alert(
+        `导入完成：${result.sessions} 场面试、${result.bookmarks} 个收藏、${result.customQuestions} 道自定义题。`,
+      );
+    } catch {
+      window.alert("导入失败：请选择由本产品导出的 JSON 备份文件。");
+    } finally {
+      event.target.value = "";
+    }
   }
 
   function applyModelPreset(preset: ModelPresetKey): void {
-    if (preset === "custom") return;
+    if (preset === "custom") {
+      const saved = savedModelConfigRef.current;
+      const savedIsCustom =
+        saved &&
+        !Object.values(MODEL_PRESETS).some(
+          (item) =>
+            item.baseUrl === saved.baseUrl && item.model === saved.model,
+        );
+      setModelConfig(
+        savedIsCustom
+          ? saved
+          : { baseUrl: "", model: "", apiKey: "" },
+      );
+      setRememberApiKey(
+        Boolean(savedIsCustom && savedKeyRememberedRef.current && saved.apiKey),
+      );
+      setModelTest({ status: "idle", message: "" });
+      return;
+    }
     const presetValue = MODEL_PRESETS[preset];
-    setModelConfig((config) => {
-      const isSamePreset =
-        config.baseUrl === presetValue.baseUrl &&
-        config.model === presetValue.model;
-      return {
-        ...config,
-        baseUrl: presetValue.baseUrl,
-        model: presetValue.model,
-        // 切换服务商时清空旧 Key，避免把 A 家的密钥错发给 B 家
-        apiKey: isSamePreset ? config.apiKey : "",
-      };
+    const saved = savedModelConfigRef.current;
+    const canRestoreSavedKey =
+      preset === "zhipu" &&
+      saved?.baseUrl === presetValue.baseUrl &&
+      saved.model === presetValue.model;
+    setModelConfig({
+      baseUrl: presetValue.baseUrl,
+      model: presetValue.model,
+      apiKey: canRestoreSavedKey ? saved.apiKey : "",
     });
+    setRememberApiKey(
+      Boolean(canRestoreSavedKey && savedKeyRememberedRef.current && saved.apiKey),
+    );
     setModelTest({ status: "idle", message: "" });
   }
 
   async function handleTestModel() {
-    if (modelTest.status === "testing") return;
+    if (modelTestLockedRef.current) return;
+    modelTestLockedRef.current = true;
     setModelTest({ status: "testing", message: "" });
     try {
       const response = await fetch("/api/model-test", {
@@ -126,6 +223,8 @@ export default function HomePage() {
         status: "fail",
         message: "无法连接服务器，请稍后重试。",
       });
+    } finally {
+      modelTestLockedRef.current = false;
     }
   }
 
@@ -141,7 +240,20 @@ export default function HomePage() {
   ) ?? "custom";
 
   async function handleStart() {
-    if (isStarting) return;
+    if (startLockedRef.current) return;
+    if (!isDeepSeekService(modelConfig.baseUrl) && !modelConfig.apiKey.trim()) {
+      setStartError(
+        "当前选择的服务商需要 API Key。请填写后再开始，或切回 DeepSeek（站方默认）。",
+      );
+      return;
+    }
+    if (
+      hasRecoverableInterview &&
+      !window.confirm("开始新面试会替换尚未完成的上一场，确定继续吗？")
+    ) {
+      return;
+    }
+    startLockedRef.current = true;
     setIsStarting(true);
     setStartError("");
 
@@ -150,14 +262,18 @@ export default function HomePage() {
         avoidRecent,
       });
       const trimmedResume = resume.trim();
+      const trimmedJobDescription = jobDescription.trim();
 
-      if (trimmedResume) {
+      if (trimmedResume || trimmedJobDescription) {
         const response = await fetch("/api/resume", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             role,
             resume: trimmedResume,
+            jobDescription: trimmedJobDescription,
+            seniority,
+            interviewRound,
             difficulty,
             modelConfig,
           }),
@@ -185,15 +301,20 @@ export default function HomePage() {
         ];
       }
 
+      clearInterviewProgress();
       saveInterviewConfig({
         role,
         questionCount,
         questions,
         startedAt: new Date().toISOString(),
         resume: trimmedResume || undefined,
+        jobDescription: trimmedJobDescription || undefined,
+        mode,
+        seniority,
+        interviewRound,
         modelConfig,
       });
-      saveModelConfig(modelConfig);
+      saveModelConfig(modelConfig, { rememberApiKey });
       trackAnalytics({
         type: "interview_start",
         role,
@@ -205,12 +326,13 @@ export default function HomePage() {
         error instanceof Error ? error.message : "面试准备失败，请重试。";
       setStartError(message);
       setIsStarting(false);
+      startLockedRef.current = false;
     }
   }
 
   return (
     <main className="relative mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-5 py-12">
-      <div className="absolute right-5 top-5 flex items-center gap-2">
+      <div className="absolute inset-x-4 top-4 flex flex-wrap items-center justify-end gap-1 sm:left-auto sm:right-5 sm:top-5 sm:gap-2">
         <Button
           variant="ghost"
           size="sm"
@@ -250,6 +372,25 @@ export default function HomePage() {
         </p>
       </div>
 
+      {hasRecoverableInterview && (
+        <div className="mb-5 flex w-full max-w-3xl flex-col gap-3 rounded-2xl border border-blue-400/30 bg-blue-500/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="font-medium text-blue-100">上次面试还没有完成</div>
+            <p className="mt-1 text-sm text-blue-200/70">
+              题号、对话和草稿都已保存在这台设备上。
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={discardRecoverableInterview}>
+              放弃本场
+            </Button>
+            <Button size="sm" onClick={() => router.push("/interview")}>
+              继续面试
+            </Button>
+          </div>
+        </div>
+      )}
+
       <Card className="w-full max-w-3xl">
         <CardHeader>
           <CardTitle>开始一场面试</CardTitle>
@@ -267,6 +408,7 @@ export default function HomePage() {
                   key={option.key}
                   type="button"
                   onClick={() => setRole(option.key)}
+                  aria-pressed={role === option.key}
                   className={cn(
                     "rounded-xl border px-5 py-4 text-left transition-colors",
                     role === option.key
@@ -290,6 +432,51 @@ export default function HomePage() {
           </section>
 
           <section>
+            <div className="mb-3 text-sm font-medium text-slate-300">练习方式</div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {([
+                ["practice", "练习模式", "可暂停、修改回答，适合打磨表达"],
+                ["simulation", "模拟模式", "连续作答，结束后统一复盘"],
+              ] as const).map(([value, label, description]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setMode(value)}
+                  aria-pressed={mode === value}
+                  className={cn(
+                    "rounded-xl border px-4 py-3 text-left transition-colors",
+                    mode === value
+                      ? "border-emerald-500 bg-emerald-500/10 text-white"
+                      : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10",
+                  )}
+                >
+                  <span className="block text-sm font-medium">{label}</span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-400">{description}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="grid gap-3 sm:grid-cols-2">
+            <label>
+              <span className="mb-1 block text-sm font-medium text-slate-300">目标职级</span>
+              <select value={seniority} onChange={(event) => setSeniority(event.target.value as typeof seniority)} className="h-11 w-full rounded-lg border border-white/10 bg-slate-950 px-3 text-sm text-slate-200">
+                <option value="junior">初级 / 0–2 年</option>
+                <option value="mid">中级 / 3–5 年</option>
+                <option value="senior">高级 / 5 年以上</option>
+              </select>
+            </label>
+            <label>
+              <span className="mb-1 block text-sm font-medium text-slate-300">面试轮次</span>
+              <select value={interviewRound} onChange={(event) => setInterviewRound(event.target.value as typeof interviewRound)} className="h-11 w-full rounded-lg border border-white/10 bg-slate-950 px-3 text-sm text-slate-200">
+                <option value="screening">初筛 / 基础匹配</option>
+                <option value="professional">专业面 / 能力深挖</option>
+                <option value="final">终面 / 综合判断</option>
+              </select>
+            </label>
+          </section>
+
+          <section>
             <div className="mb-3 text-sm font-medium text-slate-300">题目数量</div>
             <div className="grid grid-cols-3 gap-3">
               {QUESTION_COUNTS.map((count) => (
@@ -297,6 +484,7 @@ export default function HomePage() {
                   key={count}
                   type="button"
                   onClick={() => setQuestionCount(count)}
+                  aria-pressed={questionCount === count}
                   className={cn(
                     "rounded-xl border px-4 py-3 text-center transition-colors",
                     questionCount === count
@@ -305,7 +493,9 @@ export default function HomePage() {
                   )}
                 >
                   <span className="block text-xl font-semibold">{count}</span>
-                  <span className="mt-1 block text-xs text-slate-400">道题</span>
+                  <span className="mt-1 block text-xs text-slate-400">
+                    道题 · 约 {Math.round(count * 2.5)} 分钟
+                  </span>
                 </button>
               ))}
             </div>
@@ -335,7 +525,7 @@ export default function HomePage() {
               简历针对性提问
               <span className="ml-2 text-xs font-normal text-slate-500">可选</span>
             </div>
-            <div className="mb-3">
+            <label className="mb-3 block">
               <span className="mb-1 block text-xs text-slate-400">提问难度</span>
               <select
                 value={difficulty}
@@ -350,18 +540,31 @@ export default function HomePage() {
                 <option value="intermediate">进阶</option>
                 <option value="advanced">困难</option>
               </select>
-            </div>
+            </label>
             <Textarea
               value={resume}
               onChange={(event) => setResume(event.target.value)}
+              maxLength={MAX_RESUME_LENGTH}
               placeholder="粘贴简历内容或关键经历，例如：3年AI产品经验，负责过RAG知识库产品。开始面试后会根据难度生成 3 道针对性问题，替换题库末尾 3 道，总题数保持不变。"
+              aria-label="简历内容或关键经历"
+            />
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+              填写后，内容会经本站服务器发送给你选择的模型服务商，仅用于生成针对性问题；不会写入面试历史。请先删除身份证号、电话等无关敏感信息。
+            </p>
+            <Textarea
+              className="mt-3"
+              value={jobDescription}
+              onChange={(event) => setJobDescription(event.target.value)}
+              maxLength={MAX_JD_LENGTH}
+              placeholder="可选：粘贴目标岗位 JD，AI 会据此调整问题重点和追问方向。"
+              aria-label="目标岗位 JD"
             />
           </section>
 
           <section>
             <details className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
               <summary className="cursor-pointer list-none text-sm font-medium text-slate-200">
-                模型设置
+                高级设置
                 <span className="ml-2 text-xs font-normal text-slate-500">
                   可选 · 留空则使用站方默认模型
                 </span>
@@ -379,12 +582,11 @@ export default function HomePage() {
                     className="h-10 w-full rounded-lg border border-white/10 bg-slate-950 px-3 text-sm text-slate-200"
                   >
                     <option value="deepseek">DeepSeek（站方默认）</option>
-                    <option value="zhipu">智谱 GLM-4.5-Flash（免费·稳定）</option>
+                    <option value="zhipu">智谱 GLM-4.5-Flash（有免费额度）</option>
                     <option value="custom">自定义</option>
                   </select>
                   <span className="mt-1 block text-xs text-slate-500">
-                    智谱 GLM-4.5-Flash 官方免费、无需绑卡；GLM-4.7-Flash
-                    更智能但高峰期限流严重，可在模型名称里手动切换。
+                    每次打开首页都默认使用 DeepSeek。智谱提供免费额度，但仍需申请并填写 API Key；只有主动切换服务商后才会使用其他模型。
                   </span>
                 </label>
                 <label className="block">
@@ -393,6 +595,7 @@ export default function HomePage() {
                   </span>
                   <input
                     value={modelConfig.baseUrl}
+                    maxLength={2048}
                     onChange={(event) =>
                       setModelConfig((config) => ({
                         ...config,
@@ -403,12 +606,24 @@ export default function HomePage() {
                     className="h-10 w-full rounded-lg border border-white/10 bg-slate-950 px-3 text-sm text-slate-200 placeholder:text-slate-600"
                   />
                 </label>
+                <label className="flex items-start gap-3 rounded-lg bg-white/5 px-3 py-2.5">
+                  <input
+                    type="checkbox"
+                    checked={rememberApiKey}
+                    onChange={(event) => setRememberApiKey(event.target.checked)}
+                    className="mt-0.5 h-4 w-4 accent-blue-600"
+                  />
+                  <span className="text-xs leading-5 text-slate-400">
+                    在这台设备上记住 API Key。默认关闭；关闭时 Key 只保留在当前浏览器会话中。
+                  </span>
+                </label>
                 <label className="block">
                   <span className="mb-1 block text-xs text-slate-400">
                     模型名称
                   </span>
                   <input
                     value={modelConfig.model}
+                    maxLength={200}
                     onChange={(event) =>
                       setModelConfig((config) => ({
                         ...config,
@@ -436,6 +651,7 @@ export default function HomePage() {
                   <input
                     type="password"
                     value={modelConfig.apiKey}
+                    maxLength={512}
                     onChange={(event) =>
                       setModelConfig((config) => ({
                         ...config,
@@ -468,16 +684,23 @@ export default function HomePage() {
                   )}
                 </div>
                 <p className="text-xs leading-5 text-slate-500">
-                  填写后，调用时会通过服务器转发给模型服务商，仅用于本次会话，不会写入日志；建议使用专用低配额密钥。自定义服务商需兼容 OpenAI 的 chat/completions 接口，建议先点“测试连接”再开始面试；切换服务商后需重新填写该服务商的 API Key。
+                  填写后，调用会通过服务器转发给模型服务商，服务器不主动记录 Key；建议使用专用低配额密钥。自定义服务商必须是公开的 HTTPS 地址并兼容 OpenAI chat/completions 接口。
                 </p>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={resetModelConfig}
-                >
-                  恢复默认
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="ghost" size="sm" onClick={resetModelConfig}>
+                    恢复默认
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={downloadLocalData}>
+                    导出本机数据
+                  </Button>
+                  <label className="inline-flex h-9 cursor-pointer items-center rounded-md px-3 text-sm font-medium text-slate-300 hover:bg-white/10 hover:text-white focus-within:ring-2 focus-within:ring-blue-500/70">
+                    导入备份
+                    <input type="file" accept="application/json,.json" className="sr-only" onChange={importDeviceData} />
+                  </label>
+                  <Button type="button" variant="ghost" size="sm" className="text-red-300" onClick={clearDeviceData}>
+                    清除本机数据
+                  </Button>
+                </div>
               </div>
             </details>
           </section>

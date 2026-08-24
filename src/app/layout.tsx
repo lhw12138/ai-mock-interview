@@ -16,10 +16,12 @@ export default function RootLayout({
     <html lang="zh-CN">
       <body className="antialiased">
         {children}
-        <script
-          async
-          src="https://hm.baidu.com/hm.js?a650d747ca84cbab28e308e3bb99e71a"
-        />
+        {process.env.NODE_ENV === "production" && (
+          <script
+            async
+            src="https://hm.baidu.com/hm.js?a650d747ca84cbab28e308e3bb99e71a"
+          />
+        )}
       </body>
     </html>
   );

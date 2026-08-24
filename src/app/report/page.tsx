@@ -2,13 +2,18 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Lightbulb, Printer, RotateCcw, Sparkles } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Lightbulb, Printer, RotateCcw, Sparkles, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadarChart } from "@/components/radar-chart";
 import { ReportShareButton } from "@/components/report-share-button";
-import { getLatestValidSession, getSessionById } from "@/lib/storage";
-import { getRoleLabel } from "@/lib/roles";
+import {
+  clearInterviewProgress,
+  getLatestValidSession,
+  getSessionById,
+  saveInterviewConfig,
+} from "@/lib/storage";
+import { getQuestionsForRole, getRoleLabel } from "@/lib/roles";
 import { getDimensionDefs } from "@/lib/score";
 import type { InterviewSession } from "@/lib/types";
 import {
@@ -107,6 +112,7 @@ export default function ReportPage() {
   }
 
   const { report } = session;
+  const activeSession = session;
   const improvements = report.improvementSuggestions ?? [];
   const perQuestion = report.perQuestion ?? [];
   const dimensionItems = getDimensionDefs(session.role).map((definition) => ({
@@ -122,21 +128,76 @@ export default function ReportPage() {
     minute: "2-digit",
   });
 
+  const weakestDefinition =
+    getDimensionDefs(session.role).find(
+      (definition) => definition.key === report.weakestDimension,
+    ) ?? [...getDimensionDefs(session.role)].sort(
+      (a, b) =>
+        (report.dimensionScores[a.key]?.score ?? 0) -
+        (report.dimensionScores[b.key]?.score ?? 0),
+    )[0];
+
+  function beginPractice(questions: InterviewSession["questions"]): void {
+    const baselineAnswers = Object.fromEntries(
+      perQuestion
+        .filter((item) => item.userAnswer)
+        .map((item) => [item.questionId, item.userAnswer ?? ""]),
+    );
+    trackAnalytics({
+      type: "targeted_practice_start",
+      sourceSessionId: activeSession.id,
+      practiceGoal: weakestDefinition.label,
+    });
+    clearInterviewProgress();
+    saveInterviewConfig({
+      role: activeSession.role,
+      questionCount: questions.length,
+      questions,
+      startedAt: new Date().toISOString(),
+      mode: "practice",
+      practiceGoal: weakestDefinition.label,
+      sourceSessionId: activeSession.id,
+      baselineAnswers,
+    });
+    router.push("/interview");
+  }
+
+  function startWeaknessDrill(): void {
+    const lowScoreQuestions = [...perQuestion]
+      .sort((a, b) => (a.score ?? 0) - (b.score ?? 0))
+      .map((review) =>
+        activeSession.questions.find((question) => question.id === review.questionId),
+      )
+      .filter((question): question is InterviewSession["questions"][number] =>
+        Boolean(question),
+      );
+    const fallback = getQuestionsForRole(activeSession.role, 5, { avoidRecent: true });
+    const unique = [...lowScoreQuestions, ...fallback].filter(
+      (question, index, items) =>
+        items.findIndex((item) => item.id === question.id) === index,
+    );
+    beginPractice(unique.slice(0, 5));
+  }
+
   return (
     <main className="mx-auto min-h-screen w-full max-w-5xl px-5 py-8">
-      <div className="print-hidden mb-6 flex items-center justify-between gap-3">
+      <div className="print-hidden mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Button variant="ghost" size="sm" onClick={() => router.push("/")}>
           <ArrowLeft className="h-4 w-4" />
           返回首页
         </Button>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="secondary" onClick={() => window.print()}>
             <Printer className="h-4 w-4" />
-            导出 PDF
+            打印 / 导出 PDF
           </Button>
           <Button size="sm" variant="secondary" onClick={() => router.push("/")}>
             <RotateCcw className="h-4 w-4" />
             再练一次
+          </Button>
+          <Button size="sm" onClick={startWeaknessDrill}>
+            <Target className="h-4 w-4" />
+            弱项再练 5 题
           </Button>
           <ReportShareButton
             session={session}
@@ -151,7 +212,7 @@ export default function ReportPage() {
             <CardTitle>我的面试统计</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
               {[
                 { label: "完成场次", value: String(personalStats.interviewCompletes) },
                 {
@@ -171,6 +232,14 @@ export default function ReportPage() {
                   value: String(personalStats.last7DaysCompletes),
                 },
                 { label: "平均得分", value: String(personalStats.avgScore) },
+                {
+                  label: "针对性复练",
+                  value: `${personalStats.targetedCompletes}/${personalStats.targetedStarts}`,
+                },
+                {
+                  label: "复练完成率",
+                  value: `${Math.round(personalStats.targetedCompletionRate * 100)}%`,
+                },
               ].map((item) => (
                 <div
                   key={item.label}
@@ -208,12 +277,26 @@ export default function ReportPage() {
                 {report.totalScore}
               </div>
               <div className="mt-1 text-sm text-slate-400">综合得分</div>
+              {report.scoreBand && (
+                <div className="mt-2 rounded-full bg-blue-500/10 px-3 py-1 text-xs text-blue-200">
+                  {report.scoreBand}
+                </div>
+              )}
             </div>
           </div>
 
           <p className="mt-6 rounded-xl bg-white/5 px-4 py-3 text-sm leading-6 text-slate-300">
             {report.overallFeedback}
           </p>
+          <div className="mt-3 flex flex-col gap-2 text-xs leading-5 text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+            <span>{report.disclaimer ?? "本报告用于模拟练习，不代表真实招聘结论。"}</span>
+            <details className="shrink-0">
+              <summary className="cursor-pointer text-blue-300">评分方法</summary>
+              <p className="mt-2 max-w-xl rounded-lg bg-slate-950/60 p-3 text-left text-slate-400">
+                rubric-v2：0–39 核心缺失，40–59 明显不足，60–74 基本合格，75–89 表现良好，90–100 表现突出。评分优先依据本场原回答；样本不足时应降低可信度。
+              </p>
+            </details>
+          </div>
         </CardContent>
       </Card>
 
@@ -244,6 +327,11 @@ export default function ReportPage() {
                     </div>
                   </div>
                   <p className="text-sm leading-6 text-slate-400">{dimension.comment}</p>
+                  {dimension.evidence && (
+                    <p className="mt-2 rounded-lg bg-slate-950/50 px-3 py-2 text-xs leading-5 text-slate-500">
+                      证据：{dimension.evidence}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             );
@@ -268,6 +356,20 @@ export default function ReportPage() {
               <span>{suggestion}</span>
             </div>
           ))}
+          {report.weeklyGoals && report.weeklyGoals.length > 0 && (
+            <div className="mt-5 rounded-xl border border-blue-400/20 bg-blue-500/10 p-4">
+              <div className="font-medium text-blue-100">本周训练目标</div>
+              <ul className="mt-2 space-y-2 text-sm leading-6 text-blue-100/75">
+                {report.weeklyGoals.map((goal) => (
+                  <li key={goal}>• {goal}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <Button className="mt-2 w-full" size="lg" onClick={startWeaknessDrill}>
+            <Target className="h-4 w-4" />
+            针对“{weakestDefinition.label}”再练 5 题
+          </Button>
         </CardContent>
       </Card>
 
@@ -294,9 +396,23 @@ export default function ReportPage() {
                       </div>
                     </div>
                   </div>
+                  {typeof item.score === "number" && (
+                    <div className="shrink-0 text-right">
+                      <div className="text-lg font-semibold text-blue-300">{item.score}</div>
+                      <div className="text-xs text-slate-500">本题表现</div>
+                    </div>
+                  )}
                 </div>
               </summary>
               <div className="space-y-4 border-t border-white/10 px-5 py-4">
+                {item.userAnswer && (
+                  <div>
+                    <div className="mb-1 text-xs font-medium text-slate-300">你的原回答</div>
+                    <p className="whitespace-pre-wrap rounded-lg bg-slate-950/60 px-3 py-2 text-sm leading-6 text-slate-400">
+                      {item.userAnswer}
+                    </p>
+                  </div>
+                )}
                 <div>
                   <div className="mb-1 text-xs font-medium text-blue-300">回答摘要</div>
                   <p className="text-sm leading-6 text-slate-300">{item.answerSummary}</p>
@@ -309,12 +425,39 @@ export default function ReportPage() {
                   <div className="mb-1 text-xs font-medium text-amber-300">不足</div>
                   <p className="text-sm leading-6 text-slate-300">{item.weaknesses}</p>
                 </div>
+                {item.evidence && (
+                  <div>
+                    <div className="mb-1 text-xs font-medium text-blue-300">判断依据</div>
+                    <p className="text-sm leading-6 text-slate-300">{item.evidence}</p>
+                  </div>
+                )}
+                {item.improvedAnswer && (
+                  <div>
+                    <div className="mb-1 text-xs font-medium text-emerald-300">不虚构经历的改写示例</div>
+                    <p className="whitespace-pre-wrap text-sm leading-6 text-slate-300">
+                      {item.improvedAnswer}
+                    </p>
+                  </div>
+                )}
                 <div>
                   <div className="mb-1 text-xs font-medium text-violet-300">参考思路</div>
                   <p className="whitespace-pre-wrap text-sm leading-6 text-slate-400">
                     {item.referenceAnswer}
                   </p>
                 </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    const question = session.questions.find(
+                      (candidate) => candidate.id === item.questionId,
+                    );
+                    if (question) beginPractice([question]);
+                  }}
+                >
+                  立即重答这道题
+                </Button>
               </div>
             </details>
           ))}

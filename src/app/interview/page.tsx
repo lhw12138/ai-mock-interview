@@ -24,13 +24,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { interviewTurnSchema } from "@/lib/schemas";
 import {
   clearInterviewConfig,
+  clearInterviewProgress,
   isBookmarked,
   loadInterviewConfig,
+  loadInterviewProgress,
   removeBookmark,
   saveBookmark,
+  saveInterviewProgress,
   saveSession,
 } from "@/lib/storage";
 import type {
+  AnswerAttempt,
   ChatMessage,
   InterviewConfig,
   InterviewRequest,
@@ -41,6 +45,39 @@ import { getRoleLabel } from "@/lib/roles";
 import { cn, createId } from "@/lib/utils";
 import { useAsr } from "@/lib/asr/use-asr";
 import { trackAnalytics } from "@/lib/analytics";
+
+const DEFAULT_SITE_MODEL = {
+  baseUrl: "https://api.deepseek.com",
+  model: "deepseek-v4-flash",
+  apiKey: "",
+};
+
+function restoreUsableModel(config: InterviewConfig): {
+  config: InterviewConfig;
+  fellBackToDefault: boolean;
+} {
+  const modelConfig = config.modelConfig;
+  if (!modelConfig || modelConfig.apiKey.trim()) {
+    return { config, fellBackToDefault: false };
+  }
+
+  try {
+    const hostname = new URL(modelConfig.baseUrl).hostname.toLowerCase();
+    if (
+      hostname === "api.deepseek.com" ||
+      hostname.endsWith(".deepseek.com")
+    ) {
+      return { config, fellBackToDefault: false };
+    }
+  } catch {
+    // 无效且没有 Key 的旧配置同样回退到站方默认模型。
+  }
+
+  return {
+    config: { ...config, modelConfig: DEFAULT_SITE_MODEL },
+    fellBackToDefault: true,
+  };
+}
 
 export default function InterviewPage() {
   const router = useRouter();
@@ -53,7 +90,12 @@ export default function InterviewPage() {
   const [pageError, setPageError] = React.useState("");
   const [isGeneratingReport, setIsGeneratingReport] = React.useState(false);
   const [reportFailed, setReportFailed] = React.useState(false);
+  const [interviewFailed, setInterviewFailed] = React.useState(false);
+  const [retryPending, setRetryPending] = React.useState(false);
   const [answeredIds, setAnsweredIds] = React.useState<number[]>([]);
+  const [attempts, setAttempts] = React.useState<AnswerAttempt[]>([]);
+  const [restored, setRestored] = React.useState(false);
+  const [modelFallbackApplied, setModelFallbackApplied] = React.useState(false);
   const [ttsEnabled, setTtsEnabled] = React.useState(false);
   const [speaking, setSpeaking] = React.useState(false);
   const [bookmarked, setBookmarked] = React.useState(false);
@@ -63,15 +105,22 @@ export default function InterviewPage() {
   const retryCountRef = React.useRef(0);
   const questionShownAtRef = React.useRef<number>(Date.now());
   const completedTrackedRef = React.useRef(false);
+  const draftUsedVoiceRef = React.useRef(false);
+  const submissionLockedRef = React.useRef(false);
+  const reportLockedRef = React.useRef(false);
+  const retryTimerRef = React.useRef<number | null>(null);
+  const reportControllerRef = React.useRef<AbortController | null>(null);
   const latestRef = React.useRef({
     config,
     currentIndex,
     followUpCount,
     conversation,
     answeredIds,
+    attempts,
   });
 
   const handleAsrText = React.useCallback((text: string) => {
+    draftUsedVoiceRef.current = true;
     setDraft(text);
   }, []);
 
@@ -115,22 +164,14 @@ export default function InterviewPage() {
       currentConfig: InterviewConfig,
       currentConversation: ChatMessage[],
       currentAnsweredIds: number[],
+      currentAttempts: AnswerAttempt[],
+      status: "completed" | "ended_early" = "completed",
     ) => {
+      if (reportLockedRef.current) return;
+      reportLockedRef.current = true;
       setIsGeneratingReport(true);
       setReportFailed(false);
       setPageError("");
-
-      if (!completedTrackedRef.current) {
-        completedTrackedRef.current = true;
-        trackAnalytics({
-          type: "interview_complete",
-          answeredCount: currentAnsweredIds.length,
-          totalDurationMs: Math.max(
-            0,
-            Date.now() - new Date(currentConfig.startedAt).getTime(),
-          ),
-        });
-      }
 
       const answeredQuestions = currentConfig.questions.filter((question) =>
         currentAnsweredIds.includes(question.id),
@@ -138,10 +179,12 @@ export default function InterviewPage() {
       if (answeredQuestions.length === 0) {
         setPageError("至少回答一道题后才能生成报告。");
         setIsGeneratingReport(false);
+        reportLockedRef.current = false;
         return;
       }
 
       const controller = new AbortController();
+      reportControllerRef.current = controller;
       const timeout = window.setTimeout(() => controller.abort(), 90000);
 
       try {
@@ -155,6 +198,13 @@ export default function InterviewPage() {
             conversation: currentConversation,
             answeredCount: answeredQuestions.length,
             totalQuestions: currentConfig.questions.length,
+            attempts: currentAttempts,
+            baselineAnswers: currentConfig.baselineAnswers,
+            mode: currentConfig.mode,
+            seniority: currentConfig.seniority,
+            interviewRound: currentConfig.interviewRound,
+            jobDescription: currentConfig.jobDescription,
+            practiceGoal: currentConfig.practiceGoal,
           }),
           signal: controller.signal,
         });
@@ -168,14 +218,32 @@ export default function InterviewPage() {
           id: createId(),
           createdAt: new Date().toISOString(),
           role: currentConfig.role,
-          questionCount: currentConfig.questions.length,
+          questionCount: answeredQuestions.length,
           questions: currentConfig.questions,
           conversation: currentConversation,
           report: payload,
           durationMs: Date.now() - new Date(currentConfig.startedAt).getTime(),
+          answeredCount: answeredQuestions.length,
+          status,
+          attempts: currentAttempts,
+          sourceSessionId: currentConfig.sourceSessionId,
         };
 
-        saveSession(session);
+        if (!saveSession(session)) {
+          throw new Error(
+            "报告已生成，但本机存储空间不足。请清理旧记录后重试生成报告。",
+          );
+        }
+        if (!completedTrackedRef.current) {
+          completedTrackedRef.current = true;
+          trackAnalytics({
+            type: "interview_complete",
+            answeredCount: answeredQuestions.length,
+            totalDurationMs: session.durationMs,
+            targeted: Boolean(currentConfig.sourceSessionId),
+          });
+        }
+        clearInterviewProgress();
         clearInterviewConfig();
         router.push("/report");
       } catch (error) {
@@ -191,6 +259,8 @@ export default function InterviewPage() {
         setIsGeneratingReport(false);
       } finally {
         window.clearTimeout(timeout);
+        reportControllerRef.current = null;
+        reportLockedRef.current = false;
       }
     },
     [router],
@@ -224,7 +294,12 @@ export default function InterviewPage() {
       setFollowUpCount((count) => count + 1);
     } else if (isLast) {
       setConversation(nextConversation);
-      void generateReport(state.config, nextConversation, state.answeredIds);
+      void generateReport(
+        state.config,
+        nextConversation,
+        state.answeredIds,
+        state.attempts,
+      );
     } else {
       setConversation(nextConversation);
       questionShownAtRef.current = Date.now();
@@ -254,50 +329,105 @@ export default function InterviewPage() {
               delay / 1000,
             )} 秒后自动重试（第 ${retryCountRef.current} 次）…`,
           );
-          window.setTimeout(() => {
+          setRetryPending(true);
+          if (retryTimerRef.current !== null) {
+            window.clearTimeout(retryTimerRef.current);
+          }
+          retryTimerRef.current = window.setTimeout(() => {
+            retryTimerRef.current = null;
+            setRetryPending(false);
             if (lastPayloadRef.current) {
               setPageError("");
               submit(lastPayloadRef.current);
+            } else {
+              submissionLockedRef.current = false;
             }
           }, delay);
           return;
         }
         setPageError("模型服务商持续繁忙，请稍后手动重试，或改用其他模型。");
+        setInterviewFailed(true);
+        setRetryPending(false);
+        submissionLockedRef.current = false;
         return;
       }
 
       setPageError(message);
+      setInterviewFailed(true);
+      setRetryPending(false);
+      submissionLockedRef.current = false;
     },
     onFinish: ({ object, error }) => {
+      setRetryPending(false);
       if (error || !object) {
         setPageError("面试官回复解析失败，请重试。");
+        setInterviewFailed(true);
+        submissionLockedRef.current = false;
         return;
       }
+      setInterviewFailed(false);
+      submissionLockedRef.current = false;
+      lastPayloadRef.current = null;
       handleTurnRef.current(object);
     },
   });
 
   React.useEffect(() => {
+    const savedProgress = loadInterviewProgress();
+    if (savedProgress) {
+      const restoredModel = restoreUsableModel(savedProgress.config);
+      const restoredConfig = restoredModel.config;
+      const safeIndex = Math.min(
+        Math.max(0, savedProgress.currentIndex),
+        restoredConfig.questions.length - 1,
+      );
+      setConfig(restoredConfig);
+      setCurrentIndex(safeIndex);
+      setFollowUpCount(savedProgress.followUpCount);
+      setConversation(savedProgress.conversation);
+      setDraft(savedProgress.draft);
+      setInputMode(savedProgress.inputMode);
+      setAnsweredIds(savedProgress.answeredIds);
+      setAttempts(savedProgress.attempts);
+      setRestored(true);
+      setModelFallbackApplied(restoredModel.fellBackToDefault);
+      questionShownAtRef.current = Date.now();
+      latestRef.current = {
+        config: restoredConfig,
+        currentIndex: safeIndex,
+        followUpCount: savedProgress.followUpCount,
+        conversation: savedProgress.conversation,
+        answeredIds: savedProgress.answeredIds,
+        attempts: savedProgress.attempts,
+      };
+      return;
+    }
+
     const loaded = loadInterviewConfig();
     if (!loaded || loaded.questions.length === 0) {
       window.location.replace("/");
       return;
     }
 
+    const restoredModel = restoreUsableModel(loaded);
+    const loadedConfig = restoredModel.config;
     const initialMessage: ChatMessage = {
       role: "assistant",
-      content: loaded.questions[0].question,
+      content: loadedConfig.questions[0].question,
     };
-    setConfig(loaded);
+    setConfig(loadedConfig);
+    setModelFallbackApplied(restoredModel.fellBackToDefault);
     setConversation([initialMessage]);
     setAnsweredIds([]);
+    setAttempts([]);
     questionShownAtRef.current = Date.now();
     latestRef.current = {
-      config: loaded,
+      config: loadedConfig,
       currentIndex: 0,
       followUpCount: 0,
       conversation: [initialMessage],
       answeredIds: [],
+      attempts: [],
     };
   }, [router]);
 
@@ -308,8 +438,37 @@ export default function InterviewPage() {
       followUpCount,
       conversation,
       answeredIds,
+      attempts,
     };
-  }, [config, currentIndex, followUpCount, conversation, answeredIds]);
+  }, [config, currentIndex, followUpCount, conversation, answeredIds, attempts]);
+
+  React.useEffect(() => {
+    if (!config || conversation.length === 0 || isGeneratingReport) return;
+    const timeout = window.setTimeout(() => {
+      saveInterviewProgress({
+        config,
+        currentIndex,
+        followUpCount,
+        conversation,
+        draft,
+        inputMode,
+        answeredIds,
+        attempts,
+        updatedAt: new Date().toISOString(),
+      });
+    }, 250);
+    return () => window.clearTimeout(timeout);
+  }, [
+    config,
+    currentIndex,
+    followUpCount,
+    conversation,
+    draft,
+    inputMode,
+    answeredIds,
+    attempts,
+    isGeneratingReport,
+  ]);
 
   React.useEffect(() => {
     const question = config?.questions[currentIndex];
@@ -332,6 +491,10 @@ export default function InterviewPage() {
 
   React.useEffect(() => {
     return () => {
+      if (retryTimerRef.current !== null) {
+        window.clearTimeout(retryTimerRef.current);
+      }
+      reportControllerRef.current?.abort();
       if ("speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
@@ -339,7 +502,7 @@ export default function InterviewPage() {
   }, []);
 
   function handleSubmit() {
-    if (!config) return;
+    if (!config || submissionLockedRef.current || reportLockedRef.current) return;
     const text = draft.trim();
     if (!text) {
       setPageError("请先输入或说出你的回答。");
@@ -348,14 +511,41 @@ export default function InterviewPage() {
 
     cancelAsr();
     setPageError("");
+    setInterviewFailed(false);
+    submissionLockedRef.current = true;
 
     const question = config.questions[currentIndex];
     const userMessage: ChatMessage = { role: "user", content: text };
     const nextConversation: ChatMessage[] = [...conversation, userMessage];
-    const nextAnsweredIds = question ? [...answeredIds, question.id] : answeredIds;
+    const nextAnsweredIds = question
+      ? Array.from(new Set([...answeredIds, question.id]))
+      : answeredIds;
+    const elapsed = Math.max(0, Date.now() - questionShownAtRef.current);
+    const actualInputType: "voice" | "text" = draftUsedVoiceRef.current
+      ? "voice"
+      : "text";
+    const nextAttempts = question
+      ? [
+          ...attempts.filter((attempt) => attempt.questionId !== question.id),
+          (() => {
+            const previous = attempts.find(
+              (attempt) => attempt.questionId === question.id,
+            );
+            return {
+              questionId: question.id,
+              question: question.question,
+              answers: [...(previous?.answers ?? []), text],
+              inputTypes: [...(previous?.inputTypes ?? []), actualInputType],
+              durationMs: (previous?.durationMs ?? 0) + elapsed,
+            } satisfies AnswerAttempt;
+          })(),
+        ]
+      : attempts;
     setConversation(nextConversation);
     setAnsweredIds(nextAnsweredIds);
+    setAttempts(nextAttempts);
     setDraft("");
+    draftUsedVoiceRef.current = false;
 
     latestRef.current = {
       config,
@@ -363,6 +553,7 @@ export default function InterviewPage() {
       followUpCount,
       conversation: nextConversation,
       answeredIds: nextAnsweredIds,
+      attempts: nextAttempts,
     };
 
     const payload: InterviewRequest = {
@@ -374,20 +565,57 @@ export default function InterviewPage() {
       followUpCount,
       conversation: nextConversation,
       currentAnswer: text,
+      mode: config.mode,
+      seniority: config.seniority,
+      interviewRound: config.interviewRound,
+      jobDescription: config.jobDescription,
+      practiceGoal: config.practiceGoal,
     };
     trackAnalytics({
       type: "answer_submit",
       questionIndex: currentIndex,
-      inputType: inputMode,
-      durationMs: Math.max(0, Date.now() - questionShownAtRef.current),
+      inputType: actualInputType,
+      durationMs: elapsed,
     });
     lastPayloadRef.current = payload;
     retryCountRef.current = 0;
-    submit(payload);
+    try {
+      submit(payload);
+    } catch {
+      submissionLockedRef.current = false;
+      setInterviewFailed(true);
+      setPageError("面试官请求发送失败，请重试。");
+    }
+  }
+
+  function handleRetryTurn(): void {
+    if (
+      !lastPayloadRef.current ||
+      submissionLockedRef.current ||
+      reportLockedRef.current
+    ) {
+      return;
+    }
+    submissionLockedRef.current = true;
+    setInterviewFailed(false);
+    setPageError("");
+    try {
+      submit(lastPayloadRef.current);
+    } catch {
+      submissionLockedRef.current = false;
+      setInterviewFailed(true);
+      setPageError("重试发送失败，请检查网络后再试。");
+    }
   }
 
   function handleSkipQuestion() {
-    if (!config || isProcessing || isGeneratingReport) return;
+    if (
+      !config ||
+      isProcessing ||
+      isGeneratingReport ||
+      retryPending ||
+      submissionLockedRef.current
+    ) return;
 
     cancelAsr();
     setPageError("");
@@ -404,8 +632,14 @@ export default function InterviewPage() {
         followUpCount,
         conversation: nextConversation,
         answeredIds,
+        attempts,
       };
-      void generateReport(config, nextConversation, answeredIds);
+      void generateReport(
+        config,
+        nextConversation,
+        answeredIds,
+        attempts,
+      );
       return;
     }
 
@@ -425,11 +659,18 @@ export default function InterviewPage() {
       followUpCount: 0,
       conversation: advancedConversation,
       answeredIds,
+      attempts,
     };
   }
 
   function handleEndEarly() {
-    if (!config || isProcessing || isGeneratingReport) return;
+    if (
+      !config ||
+      isProcessing ||
+      isGeneratingReport ||
+      retryPending ||
+      submissionLockedRef.current
+    ) return;
 
     cancelAsr();
     setPageError("");
@@ -444,14 +685,40 @@ export default function InterviewPage() {
       followUpCount,
       conversation: nextConversation,
       answeredIds,
+      attempts,
     };
-    void generateReport(config, nextConversation, answeredIds);
+    void generateReport(
+      config,
+      nextConversation,
+      answeredIds,
+      attempts,
+      "ended_early",
+    );
   }
 
   function handleRetryReport() {
     const state = latestRef.current;
     if (!state.config || isGeneratingReport) return;
-    void generateReport(state.config, state.conversation, state.answeredIds);
+    void generateReport(
+      state.config,
+      state.conversation,
+      state.answeredIds,
+      state.attempts,
+      state.currentIndex >= state.config.questions.length - 1
+        ? "completed"
+        : "ended_early",
+    );
+  }
+
+  function handleExit(): void {
+    if (
+      isProcessing ||
+      isGeneratingReport ||
+      retryPending ||
+      submissionLockedRef.current
+    ) return;
+    cancelAsr();
+    router.push("/");
   }
 
   function handleToggleBookmark() {
@@ -485,13 +752,18 @@ export default function InterviewPage() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col px-4 py-5 sm:px-6">
-      <header className="mb-4 flex items-center justify-between gap-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/")}>
+      <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleExit}
+          disabled={isProcessing || isGeneratingReport || retryPending}
+        >
           <ArrowLeft className="h-4 w-4" />
-          退出
+          保存并退出
         </Button>
-        <div className="flex items-center gap-2">
-          <div className="text-sm text-slate-400">
+        <div className="flex w-full flex-wrap items-center justify-end gap-1 sm:w-auto sm:gap-2">
+          <div className="mr-auto min-w-0 text-sm text-slate-400 sm:mr-0">
             {getRoleLabel(config.role)} · 第{" "}
             {Math.min(currentIndex + 1, config.questions.length)} /{" "}
             {config.questions.length} 题
@@ -523,7 +795,7 @@ export default function InterviewPage() {
             variant="ghost"
             size="sm"
             className="text-amber-300 hover:bg-amber-500/10 hover:text-amber-200"
-            disabled={isProcessing || isGeneratingReport}
+            disabled={isProcessing || isGeneratingReport || retryPending}
             onClick={handleEndEarly}
           >
             <StopCircle className="h-4 w-4" />
@@ -534,6 +806,16 @@ export default function InterviewPage() {
 
       <div className="mb-5">
         <Progress value={progress} />
+        {restored && (
+          <p className="mt-2 text-xs text-emerald-300" role="status">
+            已恢复上次保存的题号、对话和草稿。
+          </p>
+        )}
+        {modelFallbackApplied && (
+          <p className="mt-2 text-xs leading-5 text-amber-300" role="status">
+            上次选择的模型没有可用 API Key，本场已自动切换为 DeepSeek（站方默认）。
+          </p>
+        )}
       </div>
 
       <Card className="flex min-h-0 flex-1 flex-col">
@@ -542,7 +824,7 @@ export default function InterviewPage() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="mb-1 text-xs text-violet-300">
-                  {currentQuestion?.category}
+                  {currentQuestion?.category} · {config.mode === "simulation" ? "模拟模式" : "练习模式"}
                 </div>
                 <div className="text-sm font-medium leading-6 text-slate-100">
                   {currentQuestion?.question}
@@ -564,6 +846,11 @@ export default function InterviewPage() {
                 />
               </button>
             </div>
+            {config.mode !== "simulation" && (
+              <p className="mt-3 text-xs leading-5 text-slate-500">
+                建议回答 1–2 分钟：先给结论，再说明依据、具体行动和结果。遇到追问时补充边界与取舍。
+              </p>
+            )}
           </div>
 
           <div className="min-h-0 flex-1 space-y-3 overflow-y-auto rounded-xl bg-slate-950/25 p-4">
@@ -601,7 +888,7 @@ export default function InterviewPage() {
           </div>
 
           {hasBlockingError && (
-            <div className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            <div className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200" role="alert" aria-live="assertive">
               <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
               <div className="min-w-0 flex-1">
                 <div>{pageError || asrError}</div>
@@ -625,6 +912,15 @@ export default function InterviewPage() {
                         重试生成报告
                       </button>
                     )}
+                    {interviewFailed && lastPayloadRef.current && (
+                      <button
+                        type="button"
+                        className="text-blue-300 hover:text-blue-200"
+                        onClick={handleRetryTurn}
+                      >
+                        重试面试官响应
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="text-blue-300 hover:text-blue-200"
@@ -644,6 +940,7 @@ export default function InterviewPage() {
                 <button
                   type="button"
                   onClick={() => setInputMode("voice")}
+                  aria-pressed={inputMode === "voice"}
                   className={cn(
                     "rounded-md px-3 py-1.5 text-xs transition-colors",
                     inputMode === "voice"
@@ -656,6 +953,7 @@ export default function InterviewPage() {
                 <button
                   type="button"
                   onClick={() => setInputMode("text")}
+                  aria-pressed={inputMode === "text"}
                   className={cn(
                     "rounded-md px-3 py-1.5 text-xs transition-colors",
                     inputMode === "text"
@@ -672,7 +970,7 @@ export default function InterviewPage() {
                   type="button"
                   variant={asrListening ? "destructive" : "secondary"}
                   size="sm"
-                  disabled={isProcessing || isGeneratingReport}
+                  disabled={isProcessing || isGeneratingReport || retryPending}
                   onClick={asrListening ? stopListening : handleStartListening}
                 >
                   {asrListening ? (
@@ -697,6 +995,12 @@ export default function InterviewPage() {
               </div>
             )}
 
+            {inputMode === "voice" && !asrListening && (
+              <p className="mb-2 text-xs leading-5 text-slate-500">
+                点击“开始说话”后，音频会直接发送至讯飞用于实时转写；本站仅保存转写后的文字。
+              </p>
+            )}
+
             {inputMode === "voice" && asrNotice && (
               <div className="mb-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
                 {asrNotice}
@@ -706,30 +1010,35 @@ export default function InterviewPage() {
             <Textarea
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
+              maxLength={8000}
               placeholder="把你的回答输入或说在这里，提交前可以编辑修正…"
             />
 
-            <div className="mt-3 flex items-center justify-between gap-3">
-              <div className="text-xs text-slate-500">
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 text-xs leading-5 text-slate-500">
                 {inputMode === "voice"
                   ? `当前：${engineLabel}，提交前可检查修正。`
-                  : "识别结果可能存在误差，建议提交前检查一遍。"}
+                  : "当前为文字输入，建议先给结论，再补充依据和结果。"}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
                 <Button
                   type="button"
                   variant="ghost"
                   onClick={handleSkipQuestion}
-                  disabled={isProcessing || isGeneratingReport}
+                  disabled={isProcessing || isGeneratingReport || retryPending}
                 >
                   <SkipForward className="h-4 w-4" />
                   跳过本题
                 </Button>
                 <Button
                   onClick={handleSubmit}
-                  disabled={!draft.trim() || isProcessing || isGeneratingReport}
+                  disabled={!draft.trim() || isProcessing || isGeneratingReport || retryPending}
                 >
-                  {isProcessing ? "等待面试官…" : "提交回答"}
+                  {retryPending
+                    ? "等待自动重试…"
+                    : isProcessing
+                      ? "等待面试官…"
+                      : "提交回答"}
                   {!isProcessing && <Send className="h-4 w-4" />}
                 </Button>
               </div>

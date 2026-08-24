@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import QRCode from "qrcode";
 import { Download, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getRoleLabel } from "@/lib/roles";
@@ -40,6 +41,7 @@ export function ReportShareButton({
   onShared?: () => void;
 }) {
   const [sharing, setSharing] = React.useState(false);
+  const [shareError, setShareError] = React.useState("");
 
   async function renderPoster(): Promise<Blob | null> {
     const canvas = document.createElement("canvas");
@@ -134,6 +136,22 @@ export function ReportShareButton({
     context.fillText("来自 AI 面试模拟助手", 80, 1320);
     context.fillText("ai-mock-interview.cyou", 80, 1360);
 
+    const qrDataUrl = await QRCode.toDataURL("https://ai-mock-interview.cyou/", {
+      width: 164,
+      margin: 1,
+      color: { dark: "#0f172a", light: "#ffffff" },
+    });
+    const qrImage = new Image();
+    await new Promise<void>((resolve, reject) => {
+      qrImage.onload = () => resolve();
+      qrImage.onerror = () => reject(new Error("二维码生成失败"));
+      qrImage.src = qrDataUrl;
+    });
+    context.fillStyle = "#ffffff";
+    roundRect(context, 828, 1210, 184, 184, 18);
+    context.fill();
+    context.drawImage(qrImage, 838, 1220, 164, 164);
+
     return new Promise((resolve) => {
       canvas.toBlob((blob) => resolve(blob), "image/png");
     });
@@ -142,6 +160,7 @@ export function ReportShareButton({
   async function handleShare(): Promise<void> {
     if (sharing) return;
     setSharing(true);
+    setShareError("");
 
     try {
       const blob = await renderPoster();
@@ -168,24 +187,33 @@ export function ReportShareButton({
       anchor.click();
       URL.revokeObjectURL(url);
       onShared?.();
+    } catch {
+      setShareError("海报生成失败，请重试；仍失败时可使用“打印 / 导出 PDF”。");
     } finally {
       setSharing(false);
     }
   }
 
   return (
-    <Button onClick={handleShare} disabled={sharing}>
-      {sharing ? (
-        <>
-          <Download className="h-4 w-4 animate-pulse" />
-          正在生成…
-        </>
-      ) : (
-        <>
-          <Share2 className="h-4 w-4" />
-          生成分享海报
-        </>
+    <div className="flex flex-col items-start gap-1">
+      <Button onClick={handleShare} disabled={sharing}>
+        {sharing ? (
+          <>
+            <Download className="h-4 w-4 animate-pulse" />
+            正在生成…
+          </>
+        ) : (
+          <>
+            <Share2 className="h-4 w-4" />
+            生成分享海报
+          </>
+        )}
+      </Button>
+      {shareError && (
+        <span className="max-w-64 text-xs leading-5 text-red-300" role="alert">
+          {shareError}
+        </span>
       )}
-    </Button>
+    </div>
   );
 }
