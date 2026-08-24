@@ -10,7 +10,7 @@ export const feedbackCategories = [
 export const feedbackSchema = z.object({
   category: z.enum(feedbackCategories),
   rating: z.number().int().min(1).max(5),
-  message: z.string().trim().min(5).max(2000),
+  message: z.string().trim().min(1).max(2000),
   contact: z.string().trim().max(120).optional(),
   sourcePage: z
     .string()

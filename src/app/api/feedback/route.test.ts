@@ -50,7 +50,7 @@ describe("POST /api/feedback", () => {
     await expect(response.json()).resolves.toMatchObject({ ok: false });
   });
 
-  it("rejects invalid or oversized-style input before delivery", async () => {
+  it("rejects empty input before delivery", async () => {
     vi.stubEnv(
       "FEISHU_FEEDBACK_WEBHOOK_URL",
       "https://open.feishu.cn/open-apis/bot/v2/hook/test_webhook",
@@ -58,7 +58,7 @@ describe("POST /api/feedback", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    const response = await POST(createRequest({ ...payload, message: "短" }));
+    const response = await POST(createRequest({ ...payload, message: "   " }));
     expect(response.status).toBe(400);
     expect(fetchMock).not.toHaveBeenCalled();
   });

@@ -25,7 +25,7 @@ export function FeedbackForm({ sourcePage }: FeedbackFormProps) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (message.trim().length < 5 || submitting) return;
+    if (!message.trim() || submitting) return;
 
     setSubmitting(true);
     setError("");
@@ -150,7 +150,7 @@ export function FeedbackForm({ sourcePage }: FeedbackFormProps) {
           id="feedback-message"
           value={message}
           onChange={(event) => setMessage(event.target.value.slice(0, 2000))}
-          minLength={5}
+          minLength={1}
           maxLength={2000}
           required
           rows={7}
@@ -195,7 +195,7 @@ export function FeedbackForm({ sourcePage }: FeedbackFormProps) {
         type="submit"
         size="lg"
         className="w-full sm:w-auto"
-        disabled={submitting || message.trim().length < 5}
+        disabled={submitting || !message.trim()}
       >
         {submitting ? (
           <>

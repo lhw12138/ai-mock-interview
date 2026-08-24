@@ -17,12 +17,23 @@ describe("feedbackSchema", () => {
     ).toMatchObject({ category: "评分不准", rating: 2 });
   });
 
-  it("rejects short messages and external source URLs", () => {
+  it("accepts concise feedback such as 好用", () => {
+    expect(
+      feedbackSchema.parse({
+        category: "功能建议",
+        rating: 5,
+        message: "好用",
+        sourcePage: "/report",
+      }).message,
+    ).toBe("好用");
+  });
+
+  it("rejects empty messages and external source URLs", () => {
     expect(() =>
       feedbackSchema.parse({
         category: "功能问题",
         rating: 5,
-        message: "坏",
+        message: "   ",
         sourcePage: "https://example.com",
       }),
     ).toThrow();
