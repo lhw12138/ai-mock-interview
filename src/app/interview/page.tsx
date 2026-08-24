@@ -249,6 +249,15 @@ export default function InterviewPage() {
       } catch (error) {
         const isTimeout =
           error instanceof DOMException && error.name === "AbortError";
+        trackAnalytics({
+          type: "service_error",
+          stage: "report",
+          code: isTimeout
+            ? "timeout"
+            : error instanceof TypeError
+              ? "network"
+              : "provider",
+        });
         const message = isTimeout
           ? "生成评分报告超时，请重试。"
           : error instanceof Error
@@ -319,6 +328,11 @@ export default function InterviewPage() {
       const isRateLimited = /429|限流|访问量过大|速率限制|rate limit|Too Many Requests/i.test(
         message,
       );
+      trackAnalytics({
+        type: "service_error",
+        stage: "interview_turn",
+        code: isRateLimited ? "rate_limited" : "provider",
+      });
 
       if (isRateLimited && lastPayloadRef.current) {
         if (retryCountRef.current < 3) {
@@ -360,6 +374,11 @@ export default function InterviewPage() {
     onFinish: ({ object, error }) => {
       setRetryPending(false);
       if (error || !object) {
+        trackAnalytics({
+          type: "service_error",
+          stage: "interview_turn",
+          code: "invalid_response",
+        });
         setPageError("面试官回复解析失败，请重试。");
         setInterviewFailed(true);
         submissionLockedRef.current = false;
@@ -582,6 +601,11 @@ export default function InterviewPage() {
     try {
       submit(payload);
     } catch {
+      trackAnalytics({
+        type: "service_error",
+        stage: "interview_turn",
+        code: "network",
+      });
       submissionLockedRef.current = false;
       setInterviewFailed(true);
       setPageError("面试官请求发送失败，请重试。");
@@ -602,6 +626,11 @@ export default function InterviewPage() {
     try {
       submit(lastPayloadRef.current);
     } catch {
+      trackAnalytics({
+        type: "service_error",
+        stage: "interview_turn",
+        code: "network",
+      });
       submissionLockedRef.current = false;
       setInterviewFailed(true);
       setPageError("重试发送失败，请检查网络后再试。");

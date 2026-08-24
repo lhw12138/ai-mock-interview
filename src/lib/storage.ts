@@ -483,6 +483,11 @@ export function clearAllLocalData(): void {
     PROGRESS_KEY,
     ANALYTICS_KEY,
     TRANSIENT_SESSION_KEY,
+    "ai-mock-interview:anonymous-id",
+    "ai-mock-interview:visit-id",
+    "ai-mock-interview:attribution",
+    "ai-mock-interview:first-answer-sent",
+    "ai-mock-interview:landing-view-sent",
   ].forEach((key) => {
     window.localStorage.removeItem(key);
     window.sessionStorage.removeItem(key);

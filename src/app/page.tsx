@@ -95,6 +95,7 @@ export default function HomePage() {
   const savedKeyRememberedRef = React.useRef(false);
 
   React.useEffect(() => {
+    trackAnalytics({ type: "landing_view" });
     const saved = loadModelConfig();
     savedModelConfigRef.current = saved;
     savedKeyRememberedRef.current = isApiKeyRemembered();
@@ -219,6 +220,11 @@ export default function HomePage() {
         });
       }
     } catch {
+      trackAnalytics({
+        type: "service_error",
+        stage: "model_test",
+        code: "network",
+      });
       setModelTest({
         status: "fail",
         message: "无法连接服务器，请稍后重试。",
@@ -319,9 +325,15 @@ export default function HomePage() {
         type: "interview_start",
         role,
         questionCount,
+        mode,
       });
       router.push("/interview");
     } catch (error) {
+      trackAnalytics({
+        type: "service_error",
+        stage: "interview_prepare",
+        code: error instanceof TypeError ? "network" : "provider",
+      });
       const message =
         error instanceof Error ? error.message : "面试准备失败，请重试。";
       setStartError(message);
