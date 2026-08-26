@@ -14,7 +14,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { getQuestionsForRole, ROLE_OPTIONS } from "@/lib/roles";
+import {
+  getQuestionsForRole,
+  ROLE_OPTIONS,
+  UPCOMING_ROLE_OPTIONS,
+} from "@/lib/roles";
 import {
   clearAllLocalData,
   clearInterviewConfig,
@@ -429,15 +433,24 @@ export default function HomePage() {
                   )}
                 >
                   <div className="text-base font-semibold">{option.label}</div>
-                  <div className="mt-1 text-xs text-slate-400">
-                    {option.key === "ai_pm"
-                      ? "大模型应用 + 通用产品题"
-                      : option.key === "agent_dev"
-                        ? "Agent 架构、工具调用与多 Agent 系统"
-                        : option.key === "llm_dev"
-                          ? "RAG、Prompt、微调与推理部署"
-                          : "通用产品经理高频题"}
+                  <div className="mt-1 text-xs text-slate-400">{option.description}</div>
+                </button>
+              ))}
+              {UPCOMING_ROLE_OPTIONS.map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  disabled
+                  aria-disabled="true"
+                  className="cursor-not-allowed rounded-xl border border-dashed border-white/10 bg-white/[0.025] px-5 py-4 text-left text-slate-500"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-base font-semibold">{option.label}</span>
+                    <span className="rounded-full bg-white/5 px-2 py-0.5 text-[11px] text-slate-500">
+                      即将上线
+                    </span>
                   </div>
+                  <div className="mt-1 text-xs text-slate-500">{option.description}</div>
                 </button>
               ))}
             </div>

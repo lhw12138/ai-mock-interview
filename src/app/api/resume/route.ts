@@ -2,6 +2,7 @@ import { generateObject } from "ai";
 import { z } from "zod";
 import { getDeepSeekModel } from "@/lib/ai";
 import { getRoleLabel } from "@/lib/roles";
+import { ROLE_KEYS } from "@/lib/types";
 import {
   assertSafeModelBaseUrl,
   enforceJsonRequest,
@@ -15,7 +16,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const requestSchema = z.object({
-  role: z.enum(["ai_pm", "pm", "agent_dev", "llm_dev"]),
+  role: z.enum(ROLE_KEYS),
   modelConfig: z
     .object({
       baseUrl: z.string().max(2048).optional(),

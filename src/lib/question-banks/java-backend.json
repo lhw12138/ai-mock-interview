@@ -1,0 +1,602 @@
+[
+  {
+    "role": "backend",
+    "question": "Java 21中虚拟线程（Virtual Threads）和传统平台线程的核心区别是什么？",
+    "category": "Java基础·基础·一面",
+    "answer": "平台线程与OS内核线程1:1映射，每个约占1MB栈内存，创建切换成本高，通常池化复用，并发上限数千。虚拟线程是JVM用户态轻量级线程，通过M:N调度映射到少量载体线程，每个仅几KB，可创建百万级，在阻塞IO（JDBC、HTTP调用）时自动卸载载体线程。虚拟线程适合IO密集型，不适合CPU密集型。注意：虚拟线程是守护线程、不应池化；JDK 24前synchronized块会pinning载体线程，推荐ReentrantLock。Spring Boot 3.2+通过spring.threads.virtual.enabled=true全局启用。常见错误：池化虚拟线程；用虚拟线程跑CPU计算；在synchronized中阻塞导致pinning。"
+  },
+  {
+    "role": "backend",
+    "question": "Java 16引入的Record类型解决了什么问题？和Lombok @Data有何区别？",
+    "category": "Java基础·基础·一面",
+    "answer": "Record是Java 16正式发布的不可变数据载体，一行声明显式生成构造器、访问器（name()而非getName()）、equals/hashCode/toString，字段均为final，隐式继承java.lang.Record且不可被继承。适合DTO、值对象、方法多返回值。与Lombok @Data区别：Record是语言级特性，编译期保证不可变性，无额外依赖；@Data通过注解处理器生成可变代码，可继承、有Lombok依赖，适合JPA实体等需要可变状态的场景。Java 21支持Record模式匹配，可在instanceof和switch中解构。常见错误：用Record承载需修改的实体；混淆accessor命名；试图添加实例字段。"
+  },
+  {
+    "role": "backend",
+    "question": "Java 17的sealed class（密封类）有什么作用？",
+    "category": "Java基础·基础·一面",
+    "answer": "密封类通过permits子句显式限制哪些类可以继承：sealed interface Shape permits Circle, Square, Triangle {}，只有这三个类能实现Shape。子类必须声明为final、sealed或non-sealed。配合Java 21 switch模式匹配可实现穷举匹配，编译器检查是否覆盖所有permits子类，新增子类未处理会编译报错，比访问者模式更简洁。典型场景：DDD值对象、状态机、代数数据类型。与final区别：final禁止所有继承，sealed允许指定类继承。常见错误：认为sealed仅用于枚举；子类不声明final/sealed/non-sealed导致编译错误。"
+  },
+  {
+    "role": "backend",
+    "question": "Java 21的switch模式匹配如何简化代码？",
+    "category": "Java基础·基础·一面",
+    "answer": "Java 21正式支持switch模式匹配，支持类型模式、null处理、卫语句（when）和Record解构。例：switch(obj){case Integer i when i>0->\"正\";case String s->\"字符串:\"+s;case null->\"空\";case Point(int x,int y)->x+\",\"+y;default->\"其他\";}。配合sealed class可编译器校验穷举。instanceof模式匹配也无需强转：if(obj instanceof String s){s.length();}。这些特性消除冗余if-else链和强转。常见错误：新switch未显式处理null（旧switch抛NPE）；在非sealed类型上期望穷举（需default）。"
+  },
+  {
+    "role": "backend",
+    "question": "HashMap在Java 8+中的底层结构和扩容机制是怎样的？",
+    "category": "Java基础·基础·一面",
+    "answer": "Java 8至21中HashMap底层均为数组+链表+红黑树。默认初始容量16，负载因子0.75，元素超容量×0.75时扩容2倍。链表长度超8且数组容量≥64时转红黑树，节点降至6时退化为链表。扩容时通过hash&oldCap判断节点留原位还是移到原位+oldCap，无需重算hash。HashMap非线程安全，并发put可能数据覆盖。多线程场景用ConcurrentHashMap。Java 21中LinkedHashMap实现了SequencedMap接口，新增reversed()等视图方法。常见错误：认为Java 7死循环问题在8+仍存在（已修复环形链表但仍不安全）；初始容量设过大；用可变对象做key。"
+  },
+  {
+    "role": "backend",
+    "question": "ConcurrentHashMap在Java 8+中如何保证线程安全？",
+    "category": "Java基础·基础·一面",
+    "answer": "Java 8+放弃分段锁，采用CAS+synchronized，锁粒度细化到桶头节点。put时空桶CAS写入，非空桶synchronized锁头节点操作链表/红黑树；size计数用LongAdder思想（baseCount+CounterCell数组）减少竞争；get全程无锁，通过volatile读保证可见性。不允许null键值（并发场景无法区分不存在和null）。复合操作必须用putIfAbsent/computeIfAbsent等原子方法，不能用containsKey+put。Java 21实现了SequencedMap接口。常见错误：用containsKey+put做非原子check-then-act；认为所有方法都加锁（get无锁）；在computeIfAbsent中修改同一Map导致递归。"
+  },
+  {
+    "role": "backend",
+    "question": "Spring Boot 3.x相比2.x最核心的变化有哪些？",
+    "category": "Spring生态·基础·一面",
+    "answer": "Spring Boot 3.x基于Spring 6：1）最低Java 17推荐21，支持虚拟线程；2）javax.*全面迁移jakarta.*；3）原生支持GraalVM Native Image和AOT；4）Spring Security 6改SecurityFilterChain Bean，WebSecurityConfigurerAdapter移除；5）Micrometer Tracing替代Sleuth，原生支持OTel；6）自动配置改AutoConfiguration.imports；7）3.2+支持虚拟线程。Spring Boot 4预计2025年底发布迁移Jakarta EE 11。常见错误：3.x仍用javax包名；混用Spring Cloud 2021.x；仍用spring.factories。"
+  },
+  {
+    "role": "backend",
+    "question": "Spring IoC/DI的核心概念是什么？@Autowired和@Resource有何区别？",
+    "category": "Spring生态·基础·一面",
+    "answer": "IoC（控制反转）将对象创建和依赖管理从代码转移到Spring容器，DI（依赖注入）是其实现方式（构造器、Setter、字段注入）。@Autowired是Spring注解，默认按类型注入，多候选时按名称，可用@Qualifier指定。@Resource是Jakarta注解（Spring Boot 3.x包名为jakarta.annotation.Resource），默认按名称注入，找不到再按类型。推荐构造器注入：依赖不可变、便于测试、避免循环依赖隐患，Spring 4.3后单构造器可省略@Autowired。Spring Boot 2.6+默认禁止循环依赖。常见错误：过度使用字段注入导致循环依赖隐蔽；@Autowired的required=false掩盖依赖缺失。"
+  },
+  {
+    "role": "backend",
+    "question": "Spring AOP中JDK动态代理和CGLIB的区别是什么？",
+    "category": "Spring生态·基础·一面",
+    "answer": "JDK动态代理基于反射，运行时生成目标接口实现类，要求目标类实现接口；CGLIB基于ASM字节码生成，通过继承目标类创建子类，无需接口但不能代理final类/方法。Spring Boot 2.x起默认CGLIB（proxy-target-class=true），3.x保持。AOP用于日志、事务、权限、监控。重要限制：同类内部方法自调用（this.method()）不走代理，AOP会失效，可通过自注入或获取代理解决。Spring Boot 3.x在GraalVM Native Image下需通过RuntimeHints注册代理。常见错误：期望AOP拦截private方法（Spring AOP只拦截public）；自调用导致@Transactional失效而不知。"
+  },
+  {
+    "role": "backend",
+    "question": "@SpringBootApplication包含哪些核心注解？",
+    "category": "Spring生态·基础·一面",
+    "answer": "组合三个核心注解：1）@SpringBootConfiguration（本质@Configuration）；2）@EnableAutoConfiguration启用自动配置，Spring Boot 3.x通过AutoConfiguration.imports加载配置类，结合@ConditionalOnClass/@ConditionalOnMissingBean/@ConditionalOnProperty按条件装配；3）@ComponentScan默认扫描主类所在包及子包。GraalVM Native Image下自动配置在AOT阶段处理，采用封闭世界假设，运行时动态Bean创建受限。常见错误：主类放在根包外导致扫不到组件；自动配置类不加@ConditionalOnMissingBean使用户无法覆盖默认Bean。"
+  },
+  {
+    "role": "backend",
+    "question": "MySQL 8.0为什么用B+树做索引而不是B树或Hash？",
+    "category": "MySQL数据库·基础·一面",
+    "answer": "B+树相比B树：非叶子节点只存键值和指针，单页（16KB）容纳更多索引项，树更矮（3层约存2000万行），减少磁盘IO；叶子节点通过双向链表连接，范围查询和排序高效。B树范围查询需中序遍历回溯。Hash索引等值O(1)但不支持范围、排序和最左前缀。InnoDB聚簇索引叶子存完整行，二级索引存主键。MySQL 8.0新增不可见索引、降序索引、函数索引和Hash Join，但B+树仍是核心。常见错误：认为B+树叶子存物理地址；混淆聚簇和非聚簇索引；认为加了索引就一定走（优化器基于成本选择）。"
+  },
+  {
+    "role": "backend",
+    "question": "数据库事务ACID在MySQL 8.x中分别由什么机制保证？",
+    "category": "MySQL数据库·基础·一面",
+    "answer": "原子性由undo log保证（回滚段记录修改前版本，失败时补偿）；一致性是目的，由原子性、隔离性、持久性和约束共同保证；隔离性由锁（行锁、间隙锁、Next-Key Lock）和MVCC实现；持久性由redo log（WAL机制，提交先写日志再刷脏页）保证。MySQL 8.0中undo log独立表空间且支持自动截断，redo log改为全局静态文件，系统表统一为InnoDB数据字典。两阶段提交保证redo log和binlog一致。常见错误：把一致性等同于数据不被破坏（指业务约束）；认为仅undo log保证原子性（崩溃恢复需redo配合）。"
+  },
+  {
+    "role": "backend",
+    "question": "MySQL 8.0四种事务隔离级别分别解决什么问题？默认级别？",
+    "category": "MySQL数据库·基础·一面",
+    "answer": "读未提交（脏读、不可重复读、幻读都存在）；读已提交RC（解决脏读，仍有不可重复读和幻读，Oracle默认）；可重复读RR（解决脏读和不可重复读，InnoDB通过MVCC+Next-Key Lock很大程度解决幻读，MySQL 8.x默认）；串行化（全部解决但性能最低）。脏读是读到未提交数据；不可重复读是两次读同一行结果不同；幻读是两次范围查询行数不同。RR下普通SELECT是快照读不加锁，SELECT FOR UPDATE是当前读加Next-Key Lock。常见错误：认为RR完全解决幻读（快照读解决，当前读需间隙锁）；混淆脏读和不可重复读。"
+  },
+  {
+    "role": "backend",
+    "question": "联合索引最左前缀原则是什么？MySQL 8.0有什么改进？",
+    "category": "MySQL数据库·基础·一面",
+    "answer": "联合索引(a,b,c)：查询必须从最左列a开始且不跳列，索引才能完全生效。WHERE a=?用到a；a=? AND b=?用到a,b；b=?或b=? AND c=?无法使用；a=? AND c=?仅用到a。MySQL 8.0.13引入索引跳跃扫描（Index Skip Scan），最左列distinct值少时即使缺少也可能用索引，但效率低。EXPLAIN的key_len判断实际用了几列。范围查询（>、<、BETWEEN、LIKE前缀）后的列无法继续用索引。常见错误：认为WHERE条件顺序必须和索引顺序一致（优化器自动调整）；在范围列后仍期望后续列走索引；过度建单列索引。"
+  },
+  {
+    "role": "backend",
+    "question": "Redis 7.x常用数据结构有哪些？有哪些新特性？",
+    "category": "Redis缓存·基础·一面",
+    "answer": "基础结构：String（缓存/计数器/分布式锁）、Hash（对象存储，7.4支持字段级过期HEXPIRE）、List（队列/最新列表）、Set（标签/去重）、ZSet（排行榜/延迟队列，listpack+跳表）。Redis 7.0重要特性：1）Redis Functions替代临时EVAL Lua，函数注册后持久化；2）Multi-Part AOF拆为base+incr+manifest；3）listpack全面替代ziplist消除连锁更新；4）ACL v2细粒度Key权限；5）Sharded Pub/Sub分片广播。Redis 7.4增加Hash字段过期和向量类型。Stream、Bitmap、HyperLogLog、Geo也常用。常见错误：用String存大JSON导致更新需整体序列化（应选Hash）；忽视ZSet双结构内存开销。"
+  },
+  {
+    "role": "backend",
+    "question": "Redis 7.x的过期策略和内存淘汰策略分别是什么？",
+    "category": "Redis缓存·基础·一面",
+    "answer": "过期策略：惰性删除（访问时检查过期）+定期删除（每100ms随机抽样设TTL的Key检查删除）。内存淘汰策略（maxmemory-policy）：noeviction（不淘汰写报错，默认）、allkeys-lru（所有Key淘汰LRU）、volatile-lru（设TTL的Key淘汰LRU）、allkeys-lfu/volatile-lfu（最不常用，4.0+）、allkeys-random/volatile-random（随机）、volatile-ttl（最快过期）。生产建议allkeys-lru或allkeys-lfu。Redis的LRU是近似采样淘汰，LFU基于计数器衰减。常见错误：混淆过期和淘汰策略；默认noeviction在内存满时写报错；认为过期Key精确删除。"
+  },
+  {
+    "role": "backend",
+    "question": "Redis 7.x的RDB和AOF如何选择？什么是Multi-Part AOF？",
+    "category": "Redis缓存·基础·一面",
+    "answer": "RDB是二进制快照，恢复快但可能丢最后一次快照后的数据，bgsave通过fork子进程非阻塞生成（大实例fork有阻塞风险）。AOF追加写命令，appendfsync有always（每条刷盘最安全）、everysec（每秒，默认，最多丢1秒）、no（OS决定）。Redis 7.0引入Multi-Part AOF：拆为base（RDB格式基础快照，重写时生成）、incr（增量命令，可多个）、manifest（清单文件），避免单文件重写时数据风险。生产推荐混合持久化（aof-use-rdb-preamble yes，7.0默认）。Redis 7.0 RDB版本为v10，与旧版不兼容。常见错误：关闭持久化追求性能；忽视fork在大内存实例的阻塞。"
+  },
+  {
+    "role": "backend",
+    "question": "TCP三次握手过程和原因是什么？2026年还需关注哪些TCP问题？",
+    "category": "计算机网络·基础·一面",
+    "answer": "三次握手：客户端发SYN→服务端回SYN+ACK→客户端发ACK，双方ESTABLISHED。原因：同步双方初始序列号（ISN，基于时钟动态生成防预测）、确认双向收发能力、防止历史重复连接导致无效连接。两次握手无法确认客户端接收能力。2026年仍需关注：TIME_WAIT优化（tcp_tw_reuse、长连接/连接池）、BBR拥塞控制（基于带宽和RTT而非丢包，高BDP网络优势明显，BBRv3演进中）、TCP Fast Open、内核参数调优（somaxconn、tcp_max_syn_backlog）、云环境LB行为。常见错误：认为三次握手为防SYN Flood（SYN Cookies才是防护）；ISN从0开始。"
+  },
+  {
+    "role": "backend",
+    "question": "TLS 1.3相比TLS 1.2有什么改进？",
+    "category": "计算机网络·基础·一面",
+    "answer": "HTTPS在HTTP和TCP间加TLS层，非对称协商密钥+对称加密传输+证书认证。TLS 1.2需2-RTT：Client Hello→Server Hello+证书+密钥交换→客户端预主密钥→生成会话密钥。TLS 1.3改进：1）握手简化为1-RTT，Server Hello后即可发应用数据；2）支持0-RTT恢复（PSK，重连首包带数据但有重放风险）；3）移除RSA密钥交换、CBC、SHA1、3DES等不安全套件，仅支持ECDHE+AEAD，前向保密成为标配。常见错误：认为HTTPS全程非对称（仅握手非对称，之后对称）；TLS 1.3仍需2-RTT；忽视证书校验导致中间人攻击。"
+  },
+  {
+    "role": "backend",
+    "question": "HTTP/1.1、HTTP/2和HTTP/3的核心区别是什么？",
+    "category": "计算机网络·基础·一面",
+    "answer": "HTTP/1.1问题：队头阻塞（同连接串行）、头部冗余、纯文本。HTTP/2改进：二进制分帧、多路复用（同TCP连接并行，消除应用层队头阻塞）、HPACK头部压缩、服务器推送（已被Chrome移除）。但HTTP/2基于TCP，TCP层队头阻塞仍存在（一个丢包阻塞所有流）。HTTP/3基于QUIC（UDP），每流独立可靠，一个流丢包不影响其他流，彻底解决；0-RTT/1-RTT握手；Connection ID连接迁移（网络切换不断连）。2026年HTTP/3在CDN和主流网站已广泛支持，Spring Boot 3.x Tomcat 10/Jetty 12支持。常见错误：认为HTTP/2完全解决队头阻塞（仅应用层）；认为HTTP/3不可靠（QUIC应用层实现可靠传输）。"
+  },
+  {
+    "role": "backend",
+    "question": "进程、线程和协程（虚拟线程）的区别是什么？",
+    "category": "操作系统·基础·一面",
+    "answer": "进程是资源分配基本单位，有独立地址空间，切换需切页表刷TLB，开销大；线程是CPU调度基本单位，同进程内共享地址空间，切换只需保存寄存器和栈，开销小但需同步；协程是用户态轻量级线程，由程序而非OS调度，切换在用户态，开销极小。Java 21虚拟线程即M:N调度协程，JVM调度到少量载体线程，阻塞IO时自动卸载，可支撑百万级并发，适合IO密集；CPU密集仍用平台线程。虚拟线程不应池化。常见错误：认为多线程一定比多进程快；用虚拟线程跑CPU计算；池化虚拟线程；synchronized中阻塞导致pinning。"
+  },
+  {
+    "role": "backend",
+    "question": "死锁四个必要条件是什么？工程中如何避免？",
+    "category": "操作系统·基础·一面",
+    "answer": "四个条件：互斥（资源同一时刻只被一个进程占用）、持有并等待（持有资源同时等待其他资源）、不可剥夺（资源只能由持有者主动释放）、循环等待（环形等待链）。预防破坏任一条件：统一加锁顺序破坏循环等待（工程最常用）、一次性申请所有资源、允许抢占。实践：tryLock带超时避免无限等待；InnoDB通过wait-for graph检测死锁并回滚代价最小的事务；避免长事务持锁过久；确保锁定条件走索引减少锁范围。开启innodb_print_all_deadlocks记录所有死锁。常见错误：死锁只重试不分析根因；不同事务以不同顺序访问资源。"
+  },
+  {
+    "role": "backend",
+    "question": "为什么需要消息队列？它带来了哪些新问题？",
+    "category": "消息队列·基础·一面",
+    "answer": "MQ解决三个核心问题：解耦（生产者消费者独立演进）、异步（非核心逻辑异步处理降低主链路RT）、削峰（突发流量先入MQ，消费者按能力平滑处理）。但引入MQ也带来：系统可用性降低（MQ宕机影响业务）、一致性问题（消息投递与本地事务原子性）、消息重复/丢失/顺序性、运维和监控成本。2026年主流MQ包括Kafka（KRaft模式，高吞吐事件流）、RocketMQ 5.x（Proxy+存算分离、Pop消费）、RabbitMQ（复杂路由）、Pulsar（存算分离、多租户）。使用必须考虑消息可靠性（生产确认+消费确认）、幂等消费和死信队列。常见错误：为用而用增加复杂度；忽视消息堆积监控；不做幂等。"
+  },
+  {
+    "role": "backend",
+    "question": "Kafka 4.0后KRaft模式相比ZooKeeper模式有什么优势？",
+    "category": "消息队列·基础·一面",
+    "answer": "Kafka 4.0（2025年）完全移除ZooKeeper，KRaft成为唯一模式。KRaft通过Raft协议在Controller Quorum中管理元数据，元数据存内部主题__cluster_metadata。优势：1）架构简化，无需独立维护ZK集群；2）支持百万级分区（ZK模式有效上限数万）；3）Controller故障切换近瞬时（Raft日志，比ZK快一个数量级）；4）元数据传播基于日志事件驱动更高效；5）单一管理模型。Kafka 3.3+ KRaft生产可用，3.5+支持ZK到KRaft迁移，3.9是最后支持ZK的版本。常见错误：新项目仍部署ZK模式；认为KRaft牺牲一致性（Raft保证强一致）。"
+  },
+  {
+    "role": "backend",
+    "question": "CAP理论在分布式系统中如何理解？PACELC又是什么？",
+    "category": "分布式系统·基础·一面",
+    "answer": "CAP指分布式系统最多同时满足一致性C（线性一致）、可用性A（非错误响应）、分区容错P中的两个。网络分区不可避免，P必须保证，实际在C和A间权衡。CP如etcd/ZooKeeper（分区时拒写），AP如Cassandra/Eureka（分区时仍读写但可能不一致）。CAP的C是强一致，不同于ACID的C。PACELC进一步指出：即使无分区（Else），也需在延迟L和一致性C间权衡。2026年NewSQL（TiDB/CockroachDB）通过Raft+多副本在正常时兼顾C和低延迟，分区时牺牲部分A。常见错误：认为MySQL是CA系统（单机无P概念）；将BASE与CAP对立（BASE是AP方向延伸）。"
+  },
+  {
+    "role": "backend",
+    "question": "微服务和单体如何取舍？Spring Modulith提供了什么新思路？",
+    "category": "微服务与架构·基础·一面",
+    "answer": "单体优点：开发调试简单、部署方便、事务直接、无分布式复杂性；缺点：代码膨胀难维护、无法按需伸缩、部署耦合。微服务优点：独立部署扩展、技术栈灵活、故障隔离；缺点：分布式复杂性（网络延迟、数据一致、运维成本）。微服务适合业务复杂、团队大、需独立扩展的场景。Spring Modulith（2025年成熟）提供模块化单体：在单体内按业务领域划分模块，通过包结构和@ApplicationModuleListener强制边界，模块间用Spring事件解耦，测试期verify()验证架构约束，未来可平滑拆分微服务，避免过早微服务化。常见错误：项目初期盲目微服务化；拆分过细形成分布式单体；忽视康威定律。"
+  },
+  {
+    "role": "backend",
+    "question": "服务注册中心工作原理是什么？Nacos和Eureka如何选择？",
+    "category": "微服务与架构·基础·一面",
+    "answer": "注册中心核心：服务注册（启动时注册元数据）、服务发现（消费者获取提供者列表）、健康检查（摘除不健康实例）、动态推送（实例变更通知）。Eureka是AP模型，Peer-to-Peer复制，心跳续约，自我保护模式，已进入维护模式。Nacos支持AP/CP切换（Distro/Raft），临时实例心跳、永久实例主动探测，Nacos 2.x用gRPC长连接替代HTTP短连接，集成配置中心，支持权重路由，是Spring Cloud Alibaba推荐方案。Consul基于Raft（CP），内置KV和多数据中心。2026年新项目推荐Nacos；K8s环境可用Service+CoreDNS。常见错误：认为CP一定更好（服务发现更看重可用性）；不配健康检查导致假死实例被调用。"
+  },
+  {
+    "role": "backend",
+    "question": "什么是RAG（检索增强生成）？它解决了大模型的哪些问题？",
+    "category": "AI工程化·基础·一面",
+    "answer": "RAG将外部知识库检索与大模型生成结合。流程：用户提问→查询向量化（Embedding）→向量数据库检索相关文档片段→将片段拼入Prompt→LLM基于上下文生成回答。RAG解决三个问题：1）知识时效性（LLM训练数据有截止日期，RAG可接入实时/私有数据）；2）幻觉问题（提供事实依据减少编造，回答可溯源）；3）数据隐私（私有知识无需微调，通过检索注入）。2026年RAG已成为企业AI标准架构，演进到混合检索（向量+BM25）、重排序、查询改写、GraphRAG等。常见错误：只做向量检索不做关键词检索导致专有名词命中率低；不评估检索质量只看生成效果。"
+  },
+  {
+    "role": "backend",
+    "question": "OpenTelemetry三大支柱是什么？和Zipkin有何不同？",
+    "category": "可观测性·基础·一面",
+    "answer": "OpenTelemetry（OTel）是CNCF统一可观测性标准，整合OpenTracing和OpenCensus，三大支柱：1）Traces（分布式追踪调用链和Span）；2）Metrics（Counter/Gauge/Histogram可聚合数值）；3）Logs（带时间戳事件）。OTel提供统一SDK、API和Collector，与后端无关，可导出到Prometheus、Jaeger、Tempo、Loki、Datadog等。Zipkin仅做追踪且是特定后端。2026年OTel已成为事实标准，Spring Boot 3.x通过Micrometer Tracing原生集成。Collector支持尾部采样（基于Trace整体特征决定采样）。常见错误：认为OTel是后端（它是采集和标准层）；只做Trace不关联Metric和Log。"
+  },
+  {
+    "role": "backend",
+    "question": "OAuth 2.1相比OAuth 2.0最核心的安全改进是什么？",
+    "category": "安全·基础·一面",
+    "answer": "OAuth 2.1核心改进：1）PKCE对所有客户端强制（OAuth 2.0仅推荐移动端），通过code_verifier/code_challenge防止授权码被截获；2）移除隐式授权（Implicit，token暴露在URL）和密码授权（ROPC，用户凭证交给客户端），统一使用授权码模式；3）Redirect URI必须精确匹配（2.0允许通配符，存在开放重定向风险）；4）Bearer Token禁止放URL查询串，必须用Authorization头；5）推荐Refresh Token轮换防重放。2026年后端应使用Spring Security 6+的OAuth 2.1/OIDC支持，SPA和移动端用授权码+PKCE。常见错误：新系统仍用密码模式；Redirect URI用通配符；SPA仍用已废弃的隐式模式。"
+  },
+  {
+    "role": "backend",
+    "question": "ThreadLocal原理是什么？虚拟线程时代有什么新选择？",
+    "category": "Java基础·进阶·二面",
+    "answer": "ThreadLocal通过每个Thread的ThreadLocalMap存储，Key是ThreadLocal弱引用，Value强引用。GC后Key变null但Value仍强引用，线程长期存活（线程池）会泄漏，必须finally中remove()。InheritableThreadLocal在创建子线程时继承值，但线程池复用失效。Java 21虚拟线程时代新选择是Scoped Values（预览）：不可变、绑定虚拟线程生命周期、自动清理、无继承副作用，因为虚拟线程可能百万级，ThreadLocal内存和继承语义不再合适。Spring等框架在虚拟线程模式下逐步适配。常见错误：用ThreadLocal缓存数据库连接等昂贵资源（虚拟线程放大内存问题）；不remove导致泄漏；线程池中依赖InheritableThreadLocal。"
+  },
+  {
+    "role": "backend",
+    "question": "线程池核心参数有哪些？虚拟线程时代配置有何变化？",
+    "category": "Java基础·进阶·二面",
+    "answer": "ThreadPoolExecutor七大参数：corePoolSize、maximumPoolSize、keepAliveTime、unit、workQueue、threadFactory、handler。流程：核心线程→队列→非核心线程→拒绝策略。CPU密集设N+1，IO密集设2N，需压测。禁止Executors（FixedThreadPool无界队列OOM、CachedThreadPool无界线程OOM）。虚拟线程时代用newVirtualThreadPerTaskExecutor()，每任务新建虚拟线程，无需池化调优。但DB连接池仍是瓶颈，大小按DB承载能力设置。常见错误：核心线程过大导致上下文切换；不同业务共用线程池；虚拟线程场景仍用固定线程池。"
+  },
+  {
+    "role": "backend",
+    "question": "G1和ZGC（含JDK 21分代ZGC）如何选择？",
+    "category": "Java基础·进阶·二面",
+    "answer": "G1是JDK 9+默认，堆划分为等大Region，按回收价值优先回收，停顿可控（MaxGCPauseMillis默认200ms），适合4-32GB中等堆。ZGC JDK 15生产就绪、JDK 21引入分代ZGC（JEP 439），基于染色指针和读屏障，几乎全并发，停顿<1ms且不随堆增长，支持TB级堆；分代ZGC吞吐比单代提升约10%。选择：小堆（<4GB）用G1；大堆（>32GB）、延迟敏感（金融交易、实时API）、容器弹性伸缩用ZGC。ZGC代价是略低峰值吞吐和更高CPU开销。JDK 17+ ZGC支持动态GC线程数和内存归还。常见错误：小堆盲目用ZGC（CPU开销不划算）；用JDK 11实验版ZGC。"
+  },
+  {
+    "role": "backend",
+    "question": "CompletableFuture如何异步编排？虚拟线程时代还有必要吗？",
+    "category": "Java基础·进阶·三面",
+    "answer": "CompletableFuture核心：supplyAsync/runAsync异步执行；thenApply转换；thenCompose扁平化；thenCombine合并；allOf等待全部/anyOf任一；exceptionally/handle异常。典型用于并行调用多下游后聚合。线程池应显式传入避免commonPool。虚拟线程时代，简单并行用虚拟线程+Future.get()代码更直观；但CompletableFuture在复杂编排（条件组合、异常传播、allOf聚合）仍有价值。选型：简单并行用虚拟线程；复杂流式编排用CompletableFuture或Reactor；不要在虚拟线程中用synchronized导致pinning。常见错误：thenApply中做阻塞IO（应用thenApplyAsync）；异常被吞导致永久阻塞。"
+  },
+  {
+    "role": "backend",
+    "question": "Spring Boot 3.2启用虚拟线程后需注意哪些兼容性问题？",
+    "category": "Java基础·进阶·三面",
+    "answer": "配置spring.threads.virtual.enabled=true后Tomcat和@Async默认用虚拟线程。注意：1）synchronized在JDK 24前会导致虚拟线程pinning载体线程，阻塞期间载体线程无法复用，应换ReentrantLock；2）ThreadLocal可用但不缓存昂贵资源（虚拟线程可能百万级导致内存膨胀），考虑Scoped Values；3）数据库连接池仍是瓶颈，连接池大小按DB承载能力设置而非CPU数；4）不要池化虚拟线程；5）第三方库中synchronized和ThreadLocal可能导致pinning，需压测；6）监控需适配（jstack/Arthas已支持）；7）CPU密集任务不要用虚拟线程，仍用平台线程。常见错误：启用后不调连接池；虚拟线程跑计算任务；忽视pinning导致载体线程耗尽。"
+  },
+  {
+    "role": "backend",
+    "question": "红黑树的性质是什么？它与AVL树有何区别？Java中哪些集合使用了红黑树？",
+    "category": "数据结构与算法·进阶·一面",
+    "answer": "红黑树五条性质：1）节点非红即黑；2）根节点黑色；3）所有NIL叶子黑色；4）红节点的两个子节点必黑（不能连续红）；5）任一节点到其叶子的所有路径包含相同数目的黑节点（黑高相同）。插入删除通过变色和左右旋转维持平衡，最长路径不超过最短路径2倍，保证O(logn)。与AVL树区别：AVL严格平衡（左右高度差≤1），查找更快但插入删除旋转多；红黑树近似平衡，插入最多2次旋转、删除最多3次，维护开销低，适合频繁增删。Java中TreeMap、TreeSet、HashMap（链表≥8且数组≥64时）使用红黑树。常见错误：认为红黑树和AVL一样严格平衡；不知道HashMap转树阈值6和8的设计（留缓冲防频繁转换）。"
+  },
+  {
+    "role": "backend",
+    "question": "Spring循环依赖和三级缓存机制是什么？2.6+有什么变化？",
+    "category": "Spring生态·进阶·一面",
+    "answer": "Spring通过三级缓存解决单例Setter/字段注入循环依赖：singletonObjects（完整Bean）、earlySingletonObjects（早期引用）、singletonFactories（ObjectFactory，支持AOP代理延迟生成）。A实例化后放三级缓存→注入B→B实例化→注入A时从三级缓存获取A早期引用→B完成→A完成。构造器注入无法解决（必须先有实例才能暴露早期引用）。Spring Boot 2.6+默认禁止循环依赖（allow-circular-references=false），鼓励重构。3.x延续且在GraalVM AOT下更受限。最佳实践：提取公共服务、@Lazy延迟注入、事件驱动解耦。常见错误：认为三级缓存专为AOP设计（实际是延迟代理生成）；构造器循环期望Spring解决；@Lazy治标不治本。"
+  },
+  {
+    "role": "backend",
+    "question": "Spring事务传播行为有哪些？什么场景用REQUIRES_NEW？",
+    "category": "Spring生态·进阶·二面",
+    "answer": "七种：REQUIRED（默认，有则加入无则新建）、SUPPORTS、MANDATORY、REQUIRES_NEW（始终新建，挂起当前）、NOT_SUPPORTED、NEVER、NESTED（嵌套savepoint）。REQUIRES_NEW典型场景：操作日志记录（主业务回滚日志仍独立提交）、异步消息发送（独立于主事务）。注意REQUIRES_NEW挂起原事务占用两个DB连接，高频使用可能耗尽连接池。NESTED是同一事务内保存点，外层回滚嵌套也回滚；REQUIRES_NEW是独立事务。Spring Boot 3.x事务在虚拟线程下仍基于JDBC连接，长事务占用连接。常见错误：自调用导致@Transactional失效（this调用不走代理）；REQUIRES_NEW异常被吞；NESTED被误认为独立事务。"
+  },
+  {
+    "role": "backend",
+    "question": "Spring Boot 3.x自动配置注册方式有什么变化？如何自定义Starter？",
+    "category": "Spring生态·进阶·二面",
+    "answer": "Spring Boot 2.x通过META-INF/spring.factories注册自动配置；3.x改为META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports，每行一个配置类。配置类用@AutoConfiguration，配合@ConditionalOnClass/@ConditionalOnMissingBean/@ConditionalOnProperty条件装配。自定义Starter：1）@AutoConfiguration声明@Bean；2）条件注解控制装配；3）imports文件列出。Native Image下需RuntimeHints注册反射/资源。常见错误：3.x仍用spring.factories不生效；不加@ConditionalOnMissingBean。"
+  },
+  {
+    "role": "backend",
+    "question": "Spring WebFlux和虚拟线程如何选型？",
+    "category": "Spring生态·进阶·二面",
+    "answer": "WebFlux基于Project Reactor和Netty，非阻塞响应式，少量事件循环线程处理高并发，适合超高并发IO、长连接、流式（SSE/WebSocket）。但学习曲线陡峭（Mono/Flux调试难）、需全链路响应式（JDBC阻塞会抵消优势，需R2DBC）、与阻塞生态兼容差。Java 21虚拟线程让Spring MVC thread-per-request模型在IO密集也能高并发，代码直观同步，与JDBC等阻塞生态无缝兼容。选型：2026年大多数业务后端优先MVC+虚拟线程（简单、生态好、足够高并发）；已有响应式经验、超高并发流式选WebFlux；两者可混用。注意虚拟线程synchronized pinning和连接池瓶颈。常见错误：盲目上WebFlux但用阻塞JDBC；低估响应式调试难度；认为WebFlux一定快。"
+  },
+  {
+    "role": "backend",
+    "question": "GraalVM Native Image的AOT编译有哪些核心限制？适合什么场景？",
+    "category": "Spring生态·进阶·三面",
+    "answer": "Native Image构建时静态分析编译为原生可执行文件，启动毫秒级内存低，但封闭世界假设限制：1）反射、动态代理、JNI、资源加载需RuntimeHints注册；2）类路径构建时固定，不支持运行时动态加载；3）@Profile等动态配置需构建时确定；4）构建时间8-12分钟，CI需大内存；5）峰值吞吐低于JVM（无JIT）；6）JMX/Arthas失效需eBPF。Spring Boot 3.x通过Spring AOT处理自动配置。适合Serverless冷启动、CLI、弹性伸缩；不适合长运行高吞吐、大量反射场景。常见错误：不评估第三方库Native兼容性；期望Native吞吐更高；CI不预留构建时间。"
+  },
+  {
+    "role": "backend",
+    "question": "跳表（Skip List）的原理是什么？相比红黑树有什么优势？Redis ZSet为什么选择跳表？",
+    "category": "数据结构与算法·进阶·三面",
+    "answer": "跳表是有序链表的多层索引结构：底层是完整有序链表，每个节点以概率p（通常0.25-0.5）晋升到上一层，形成多级索引。查找从最高层开始，逐层向下定位，期望O(logn)。插入时随机决定层数，无需旋转。相比红黑树优势：1）实现简单，无需复杂旋转和变色；2）范围查询天然友好——底层链表顺序遍历即可，红黑树需中序遍历回溯；3）并发友好——局部锁定影响小（红黑树旋转涉及全局结构调整）；4）内存可调——通过概率参数平衡空间和时间。Redis ZSet同时使用跳表+listpack（小数据量），跳表按score排序支持ZRANGE/ZRANK等范围和排名操作。Redis 7.x中ZSet仍用跳表。跳表缺点是空间O(nlogn)期望但常数可接受。常见错误：认为跳表查找是O(n)（有索引是O(logn)）；不知道跳表范围查询优势。"
+  },
+  {
+    "role": "backend",
+    "question": "MySQL 8.0的MVCC实现原理是什么？RC和RR有何区别？",
+    "category": "MySQL数据库·进阶·一面",
+    "answer": "MVCC通过undo log版本链和ReadView实现非阻塞一致性读。每行有隐藏字段DB_TRX_ID（最近修改事务ID）、DB_ROLL_PTR（指向undo log），undo log通过roll_pointer形成版本链。ReadView包含m_ids（活跃事务列表）、min_trx_id、max_trx_id、creator_trx_id，比较trx_id判断版本可见性。RC每次SELECT生成新ReadView，能看到其他事务已提交修改（不可重复读）；RR只在第一次SELECT生成ReadView并复用，后续读取一致（可重复读）。MVCC让读不阻塞写、写不阻塞读。MVCC只解决快照读幻读，当前读（SELECT FOR UPDATE）仍需Next-Key Lock。常见错误：认为MVCC完全解决幻读；混淆RC和RR下ReadView生成时机。"
+  },
+  {
+    "role": "backend",
+    "question": "MySQL 8.0窗口函数和CTE如何使用？",
+    "category": "MySQL数据库·进阶·二面",
+    "answer": "MySQL 8.0新增窗口函数和CTE。CTE（WITH子句）定义临时结果集，支持递归（WITH RECURSIVE），可替代复杂子查询，可读性好；递归CTE处理树形/层级数据（组织架构、菜单树）。窗口函数对一组行计算并为每行返回结果（不减少行数），包括ROW_NUMBER()、RANK()、DENSE_RANK()、LAG()/LEAD()、SUM() OVER(PARTITION BY...ORDER BY...)，常用于分组Top N、同比环比、累计求和、移动平均。8.0还支持Hash Join（8.0.18+，无索引等值连接性能大幅提升）、不可见索引、降序索引、JSON_TABLE。这些特性让MySQL分析能力增强。常见错误：窗口函数忘记OVER子句；递归CTE无终止条件导致无限递归；不知道Hash Join在无索引连接时的优势。"
+  },
+  {
+    "role": "backend",
+    "question": "哪些情况导致MySQL索引失效？如何用EXPLAIN分析？",
+    "category": "MySQL数据库·进阶·一面",
+    "answer": "失效场景：索引列用函数/运算/隐式类型转换；LIKE以%开头；联合索引不满足最左前缀；OR一侧无索引；!=/NOT IN某些情况；隐式字符集转换。EXPLAIN关键字段：type（const>eq_ref>ref>range>index>ALL，至少range）、key（实际索引）、key_len（用了几列）、rows（预估行数）、Extra（Using index覆盖索引好；Using filesort/temporary需优化）。MySQL 8.0新增EXPLAIN ANALYZE（真实耗时）、不可见索引（先设INVISIBLE验证再删）、直方图统计。常见错误：只看type不看rows和Extra；不用EXPLAIN ANALYZE获取真实数据。"
+  },
+  {
+    "role": "backend",
+    "question": "InnoDB的Next-Key Lock如何解决幻读？8.0有什么锁改进？",
+    "category": "MySQL数据库·进阶·二面",
+    "answer": "锁类型：记录锁（单行）、间隙锁（锁记录间间隙防插入）、Next-Key Lock（记录+前面间隙，RR默认算法）、插入意向锁、意向锁IS/IX。RR下SELECT FOR UPDATE等当前读用Next-Key Lock锁住范围记录和间隙，阻止其他事务在范围内插入，防止幻读。等值查询命中唯一索引时退化为记录锁。RC下无间隙锁，并发更高但有幻读。MySQL 8.0改进：1）innodb_deadlock_detect可动态关闭（高并发热点行死锁检测本身是瓶颈，可关闭配合重试）；2）锁定语句支持NOWAIT和SKIP LOCKED（任务队列表跳过被锁行避免等待）；3）Performance Schema的data_locks/data_lock_waits表实时查看锁。常见错误：普通SELECT以为加锁（快照读无锁）；RC下期望间隙锁。"
+  },
+  {
+    "role": "backend",
+    "question": "redo log、binlog和undo log分别是什么？MySQL 8.0有什么变化？",
+    "category": "MySQL数据库·进阶·二面",
+    "answer": "redo log是InnoDB引擎层物理日志，记录数据页物理修改，WAL保证持久性（提交先写日志再刷脏页），crash后恢复已提交事务，循环写。binlog是Server层逻辑日志，记录行变更（ROW格式），用于主从复制和数据恢复，追加写。两阶段提交（prepare→写binlog→commit）保证一致。undo log记录修改前版本，用于回滚和MVCC。MySQL 8.0变化：1）undo log独立表空间且支持自动截断；2）redo log改为全局静态文件，8.0.30支持动态调整innodb_redo_log_capacity；3）系统表统一为InnoDB数据字典（mysql.ibd），无FRM文件；4）原子DDL；5）自增计数器持久化重启不回退。常见错误：认为binlog有crash recovery能力（不能，需redo）；混淆两者层级。"
+  },
+  {
+    "role": "backend",
+    "question": "缓存穿透、击穿和雪崩的区别及方案是什么？",
+    "category": "Redis缓存·进阶·一面",
+    "answer": "穿透：查询不存在的数据，缓存和DB都没有，每次直达DB。方案：布隆过滤器拦截、缓存空值（短TTL）、参数校验。击穿：热点Key过期瞬间大量并发打到DB。方案：互斥锁（SET NX单线程查DB回填）、逻辑过期（不设TTL异步更新）、热点永不过期。雪崩：大量Key同时过期或Redis宕机。方案：TTL加随机偏移、多级缓存（Caffeine+Redis）、Redis集群高可用、限流降级、预热。Redis 7.x可用Functions实现原子回填逻辑，布隆过滤器可用RedisBloom模块。注意空值缓存设短TTL；互斥锁必须设过期防死锁。常见错误：三者概念混淆；互斥锁不设超时；不做布隆过滤。"
+  },
+  {
+    "role": "backend",
+    "question": "如何基于Redis实现分布式锁？Redisson看门狗原理？",
+    "category": "Redis缓存·进阶·一面",
+    "answer": "基础锁：SET key value NX EX 30，value用唯一ID，释放时用Lua脚本原子检查value再删除。问题：业务超时锁自动释放、不可重入。Redisson解决：1）可重入，用Hash存线程ID和重入次数；2）看门狗：未指定leaseTime时默认每10秒续期到30秒，业务执行期间锁不过期，节点宕机后看门狗停止，锁30秒后自动释放；3）支持红锁（RedLock，向多个独立节点加锁多数成功，但争议较大）。2026年生产建议单实例Redis+Redisson满足大多数场景，强一致考虑etcd。Redis 7.x Function可封装锁操作。常见错误：SETNX不加EX导致死锁；释放不验value误删；不在finally中unlock。"
+  },
+  {
+    "role": "backend",
+    "question": "Redis Cluster分片和高可用原理是什么？7.x有什么改进？",
+    "category": "Redis缓存·进阶·二面",
+    "answer": "Redis Cluster用16384个哈希槽，Key通过CRC16(key)%16384计算槽位，槽分布在多个主节点；每个主有从节点，主故障时从自动故障转移（Gossip检测+Raft-like选举）。客户端缓存槽映射直接请求，MOVED重定向。不支持跨槽事务，可用Hash Tag强制相关Key同槽。与哨兵区别：Cluster支持数据分片水平扩展，哨兵只做高可用不分片。Redis 7.x改进：Sharded Pub/Sub分片广播；节点发现和故障转移更稳定；双通道复制（全量同步期间增量独立传输，缩短全量同步时间，7.1+）；客户端重定向。Redis 7.4是首个双许可证版本。常见错误：Cluster中事务/Lua涉及多槽报错；认为Cluster代理透明；忽视大Key迁移超时。"
+  },
+  {
+    "role": "backend",
+    "question": "Redis 7.0的Functions相比Lua EVAL有什么优势？",
+    "category": "Redis缓存·进阶·二面",
+    "answer": "Redis 7.0 Functions替代临时EVAL：1）通过FUNCTION LOAD注册后持久化到RDB/AOF，重启不丢失，而EVAL脚本不持久化；2）以函数库为单位组织，支持多函数、函数间调用、参数传入；3）函数有描述和版本元数据，可LIST和DUMP管理；4）避免EVAL每次发送整个脚本的网络开销；5）支持引擎扩展（目前仅Lua）。Functions仍运行在Redis单线程中，脚本应简短避免阻塞。7.2起推荐fcall调用。适用场景：复杂原子操作（库存扣减+限购+记录）、数据校验转换。Functions和Lua一样不应做长时间计算。常见错误：Functions中做复杂循环阻塞Redis；认为Functions支持多线程（仍单线程）。"
+  },
+  {
+    "role": "backend",
+    "question": "TCP可靠传输和拥塞控制是怎样的？BBR有什么特点？",
+    "category": "计算机网络·进阶·二面",
+    "answer": "可靠传输：序列号和ACK、超时重传（RTO基于RTT动态计算）、校验和、滑动窗口流量控制、拥塞控制。拥塞控制演进：Tahoe/Reno（慢启动+拥塞避免+快重传快恢复，丢包cwnd减半）→CUBIC（Linux默认，三次函数增长，高BDP友好）→BBR（Google，基于带宽和RTT模型而非丢包，主动探测瓶颈带宽和最小RTT，不填满缓冲区降低Bufferbloat延迟）。BBR v1 Linux 4.9+可用，BBRv2改进公平性（考虑丢包和ECN），BBRv3演进中。2026年高BDP网络和云环境BBR应用增多，CUBIC仍默认。调优还需关注somaxconn、tcp_tw_reuse、MTU探测。常见错误：混淆流量控制和拥塞控制；BBR在浅缓冲区和无线场景可能不如CUBIC。"
+  },
+  {
+    "role": "backend",
+    "question": "HTTP/2和HTTP/3 QUIC在生产中如何选择？",
+    "category": "计算机网络·进阶·二面",
+    "answer": "HTTP/2基于TCP+TLS，多路复用消除应用层队头阻塞，但TCP层队头阻塞仍存在（一个丢包阻塞所有流）；HPACK压缩；服务端推送已被Chrome移除。HTTP/3基于QUIC（UDP），每流独立可靠，一个流丢包不影响其他流，彻底解决；0-RTT/1-RTT握手；Connection ID连接迁移（WiFi切4G不断连）。2026年HTTP/3在CDN和主流网站已广泛支持。选择：公网/移动端/网络不稳定服务启用HTTP/3；内部服务间HTTP/2仍成熟；注意UDP在某些企业防火墙被封需HTTP/2回退；gRPC over HTTP/2仍是微服务内部主流。常见错误：认为HTTP/3完全替代HTTP/2（需回退）。"
+  },
+  {
+    "role": "backend",
+    "question": "虚拟内存、分页和缺页异常对Java应用有什么影响？",
+    "category": "操作系统·进阶·一面",
+    "answer": "虚拟内存为进程提供独立虚拟地址空间，通过页表映射物理内存，页面通常4KB（支持大页）。MMU做地址转换，TLB缓存页表项加速。访问不在物理内存的页面触发缺页异常：minor fault（页面在内存但未建映射，处理快）、major fault（页面在磁盘swap/文件映射，需IO，开销大）。内存不足时页面置换。对Java影响：1）-Xmx合理设置，避免堆超过物理内存导致swap（GC遍历堆时swap导致严重STW）；2）生产调低vm.swappiness（如1-10）；3）大页（-XX:+UseLargePages）减少TLB miss提升大堆性能；4）监控major page fault（vmstat/pidstat），频繁说明内存不足。常见错误：堆设过大导致swap；不监控缺页；swappiness设0在某些内核仍可能swap。"
+  },
+  {
+    "role": "backend",
+    "question": "Linux CFS调度器核心思想是什么？对Java线程有何影响？",
+    "category": "操作系统·进阶·一面",
+    "answer": "CFS（Linux 2.6.23+默认）维护每个实体的虚拟运行时间vruntime，每次选vruntime最小的运行保证公平。vruntime=实际运行时间×nice权重（nice越低权重越大，vruntime增长越慢，获得更多CPU）。CFS用红黑树管理可运行实体，最左节点为下一个调度目标，O(logn)。调度周期默认6ms，每实体至少运行0.75ms。Java线程映射为系统线程，Java优先级（1-10）映射到nice值但CFS下影响有限。虚拟线程是JVM用户态调度，载体线程由CFS调度。实时线程（SCHED_FIFO/RR）优先级高于CFS。常见错误：依赖Java线程优先级做精确调度（不可靠）；认为CFS严格轮转（按权重比例）。"
+  },
+  {
+    "role": "backend",
+    "question": "Kafka如何保证消息不丢失？KRaft模式下有什么变化？",
+    "category": "消息队列·进阶·二面",
+    "answer": "Producer：acks=all（Leader和所有ISR确认）、retries>0、enable.idempotence=true、max.in.flight≤5保序。Broker：replication.factor≥3、min.insync.replicas≥2、unclean.leader.election.enable=false。Consumer：关闭自动提交，业务处理完手动提交offset，失败重试+死信。KRaft模式下元数据通过Raft强一致，故障切换更快；消息副本机制（ISR、acks、HW）不变。Kafka 4.0必须KRaft。消息重复无法完全避免，消费者需幂等。常见错误：acks=all但min.insync.replicas=1仍丢数据；先提交offset再处理业务；不做幂等。"
+  },
+  {
+    "role": "backend",
+    "question": "如何保证消息消费幂等性？项目中怎么做的？",
+    "category": "消息队列·进阶·三面",
+    "answer": "重复原因：Producer重试（ACK丢失）、Consumer处理后提交offset失败触发rebalance、Rebalance重复消费。幂等方案：1）业务唯一键去重（订单号做去重表唯一索引或Redis SETNX）；2）数据库唯一约束（INSERT ON DUPLICATE KEY UPDATE）；3）状态机幂等（订单状态单向流转）；4）Redis去重（SET msgId NX EX 86400）。项目中采用Redis去重+数据库唯一索引双重保障，Key为消息ID+操作类型，TTL覆盖消息留存期，去重和业务操作在同一事务。Kafka幂等Producer只保证单分区单会话生产幂等。RocketMQ 5.x Pop消费由服务端管offset，仍需幂等。常见错误：只做Redis去重但Redis故障失效；用offset做去重Key（rebalance后不可靠）。"
+  },
+  {
+    "role": "backend",
+    "question": "RocketMQ 5.x的Pop消费模式解决了Push消费的什么问题？",
+    "category": "消息队列·进阶·二面",
+    "answer": "RocketMQ 4.x Push消费基于队列模型，每队列在同一消费组内只分配一个消费者，存在：1）队列数固定时增加消费者无法提升吞吐；2）单个消费者卡住（心跳存活但处理慢）导致该队列积压，其他消费者无法帮忙；3）SDK功能重，多语言移植难。5.x Pop消费：消费者从所有Broker拉取消息而非绑定队列，offset由Broker服务端管理；消息获取后有不可见时间（invisibleTime），处理完ACK删除，未ACK超时后重新可见；支持ChangeInvisibleTime续租长任务。Pop允许多消费者并发消费同一队列，解决单消费者瓶颈和积压，SDK更轻量（gRPC），配合Proxy无状态弹性扩展。常见错误：Pop不做ACK导致重复消费；invisibleTime过短导致消息处理中就被重新消费。"
+  },
+  {
+    "role": "backend",
+    "question": "Kafka、RocketMQ 5.x、RabbitMQ和Pulsar如何选型？",
+    "category": "消息队列·进阶·二面",
+    "answer": "Kafka（KRaft）：高吞吐百万级/s、持久化日志、流处理生态，适合日志采集、事件流、CDC、大数据；不支持复杂路由。RocketMQ 5.x：事务消息、任意延迟消息、Pop无状态消费、Proxy存算分离、多协议，适合电商金融，吞吐十万级。RabbitMQ：AMQP功能丰富（交换机路由、优先级、死信、插件），吞吐万级，适合复杂路由和企业集成。Pulsar：存算分离（BookKeeper+Broker）、多租户、分层存储、Geo复制，适合云原生多租户超大规模，但运维复杂。选型：日志/事件流选Kafka；事务/延迟/电商选RocketMQ；复杂路由选RabbitMQ；云原生多租户选Pulsar。2026年应考虑Kafka 4.0纯KRaft和RocketMQ 5.x云原生化。常见错误：仅凭吞吐选型；忽视团队运维能力；用Kafka做复杂路由。"
+  },
+  {
+    "role": "backend",
+    "question": "分布式锁有哪些方案？Redis锁和etcd锁如何选择？",
+    "category": "分布式系统·进阶·一面",
+    "answer": "1）Redis锁：SET NX EX+唯一value+Lua释放，Redisson看门狗续期、可重入，性能高（万级QPS），但主从切换可能丢锁（RedLock争议大）；2）ZooKeeper锁：临时顺序节点+Watcher，公平锁，Session断开自动释放，一致性强但写性能低运维重（新项目应避免，ZK在收缩）；3）etcd锁：Lease（租约）+Revision（全局单调版本），基于Raft强一致，事务原子抢锁，支持续约，比ZK轻量，是K8s原生方案；4）数据库锁：唯一索引或SELECT FOR UPDATE，简单但性能差。选型：高性能可接受极小概率异常选Redis+Redisson（多数互联网业务）；强一致/K8s环境选etcd。无论哪种都需考虑可重入、死锁避免、续期。常见错误：Redis锁不验value；不知道etcd Lease机制。"
+  },
+  {
+    "role": "backend",
+    "question": "分布式事务有哪些方案？AT、TCC、Saga和本地消息表如何对比？",
+    "category": "分布式系统·进阶·二面",
+    "answer": "Seata AT：2PC优化，一阶段提交本地事务+undo_log+全局锁，二阶段异步清理/回滚，零侵入但有全局锁热点和脏写风险，适合短事务。TCC：业务实现Try预留、Confirm、Cancel，性能好无锁但侵入大，需处理空回滚、幂等、悬挂，适合高并发资金类。Saga：长事务拆本地事务+补偿，失败逆序补偿，最终一致，适合长流程但无隔离性。本地消息表：业务和消息同一本地事务，后台轮询发MQ，消费者幂等，简单可靠但有轮询开销。RocketMQ事务消息比本地消息表更优雅。选型：强一致短事务用AT/TCC；长流程用Saga；简单异步用事务消息。2026年趋势是事件驱动+最终一致（Outbox/CDC），尽量避免强一致分布式事务。常见错误：所有方法加@GlobalTransactional；TCC不处理空回滚和悬挂。"
+  },
+  {
+    "role": "backend",
+    "question": "分布式ID方案有哪些？2026年有什么新实践？",
+    "category": "分布式系统·进阶·二面",
+    "answer": "1）UUID：本地无网络开销但无序（B+树页分裂严重）、36位、不适合主键；2）数据库自增：简单但单点瓶颈，分库分表冲突；3）号段模式：数据库分配ID区间，应用内存发号，双Buffer优化，性能高（美团Leaf-segment）；4）Snowflake：64位=1符号+41时间戳+10工作节点+12序列号，趋势递增、本地高性能，但依赖时钟回拨、需配workerId。2026年实践：号段模式适合连续短ID（订单号），Snowflake适合日志/消息ID；时钟回拨处理（等待、报警、备用workerId）；百度UidGenerator、美团Leaf成熟；ULID/Sonyflake等改进；K8s中workerId通过StatefulSet ordinal或etcd租约分配。常见错误：UUID做主键导致索引性能差；Snowflake不处理时钟回拨；workerId冲突。"
+  },
+  {
+    "role": "backend",
+    "question": "Raft和Paxos有什么区别？在哪些2026年常用系统中使用？",
+    "category": "分布式系统·进阶·二面",
+    "answer": "Paxos理论严谨但难理解实现，角色重叠、活锁、成员变更复杂。Raft（2014）设计目标是可理解性：1）强Leader，所有写经Leader，日志只从Leader流向Follower；2）随机化选举（term+随机超时，多数票当选，避免活锁）；3）日志匹配（term+index保证连续性）；4）安全性（只提交当前term日志）；5）单节点变更保证成员变更安全。Raft在etcd、Consul、Kafka KRaft、TiKV、CockroachDB、Nacos CP中广泛使用，2026年已成为分布式共识事实标准。Raft更易实现因为状态机清晰、Leader唯一、论文有伪代码。但Raft Leader切换期间不可用、网络分区时少数派不可写。常见错误：认为Raft不需客户端重试（Leader切换时需重试）；混淆日志复制和状态机应用。"
+  },
+  {
+    "role": "backend",
+    "question": "熔断和限流分别是什么？Sentinel和Resilience4J如何选择？",
+    "category": "微服务与架构·进阶·二面",
+    "answer": "熔断：下游故障率达阈值时快速失败，半开探测后恢复，防止雪崩。限流：限制单位时间请求量保护系统。限流算法：计数器（突刺）、滑动窗口（Sentinel默认）、漏桶（恒定速率）、令牌桶（允许突发）。Sentinel：滑动窗口统计，QPS/线程数/关联链路限流、慢调用/异常比例熔断、热点参数限流、系统自适应限流、控制台动态规则，Dubbo/Spring Cloud适配好。Resilience4J：函数式风格，CircuitBreaker状态机、RateLimiter令牌桶、Bulkhead线程隔离、TimeLimiter，模块化好，Spring Cloud官方生态。2026趋势是网关层粗粒度限流+服务层细粒度熔断。常见错误：只熔断不降级（需fallback兜底）；限流阈值拍脑袋不压测；新项目用已停更的Hystrix。"
+  },
+  {
+    "role": "backend",
+    "question": "API网关作用是什么？Spring Cloud Gateway核心原理？",
+    "category": "微服务与架构·进阶·一面",
+    "answer": "网关作用：统一入口、路由转发、认证鉴权、限流熔断、协议转换、日志监控、灰度路由、缓存。Spring Cloud Gateway基于WebFlux和Reactor（非阻塞Netty），核心：Route（ID+URI+Predicate+Filter）、Predicate（Path/Method/Header匹配）、Filter（修改请求/响应）。GlobalFilter和GatewayFilter组合。2026趋势：网关与Service Mesh融合、AI网关（LLM路由、Token限流、多模型降级）。网关应薄而轻，必须配超时。常见错误：网关写业务逻辑；用Zuul 1.x阻塞IO；不设全局超时。"
+  },
+  {
+    "role": "backend",
+    "question": "什么是Kubernetes Operator模式？",
+    "category": "云原生·进阶·二面",
+    "answer": "Operator将运维知识编码为软件：通过CRD定义自定义资源，Controller监听资源变化执行调谐逻辑（Reconcile Loop：观察当前状态→对比期望→操作使趋近期望），使有状态应用能声明式管理。由CRD+Controller+RBAC组成，框架有Kubebuilder、Operator SDK、Java Operator SDK。2026年Operator已成为K8s管理有状态中间件标准方式，如Prometheus Operator、Strimzi（Kafka）。解决部署、扩缩容、备份、故障恢复、版本升级自动化。后端应理解Operator理念，能使用和评估。常见错误：无状态应用也做Operator（过度设计）；Controller不幂等；不处理Reconcile失败重试。"
+  },
+  {
+    "role": "backend",
+    "question": "Istio Ambient模式和Sidecar模式有什么区别？",
+    "category": "云原生·进阶·二面",
+    "answer": "Sidecar每Pod注入Envoy拦截流量，功能完整但资源开销大（50-100MB+0.1-0.5vCPU）、启动延迟、需重启Pod。Ambient模式（Istio 1.22+，2026推进GA）分层：1）ztunnel以DaemonSet每节点部署轻量L4代理，处理mTLS、L4授权和遥测，无需重启Pod；2）Waypoint按命名空间可选部署L7 Envoy，处理HTTP路由、重试熔断，可独立伸缩。Ambient资源开销大幅降低（L4 p99延迟0.16ms vs Sidecar 0.63ms）。2026新项目可评估Ambient，存量Sidecar可共存。常见错误：认为Ambient完全替代Sidecar（L7仍需Waypoint）；多集群Ambient尚未完全稳定。"
+  },
+  {
+    "role": "backend",
+    "question": "生产级RAG服务端架构包含哪些核心组件？",
+    "category": "AI工程化·进阶·二面",
+    "answer": "核心组件：1）文档摄入：解析、分块（512-1024 tokens，重叠50-100）；2）Embedding服务：批量+缓存去重；3）向量数据库：pgvector（中小规模首选）、Milvus（亿级分布式）、Qdrant（Rust高性能）；4）混合检索：向量+BM25并行，RRF融合；5）Reranker：Cross-Encoder对Top 20重排，相关性提升30-40%；6）上下文组装：Top 5-8 chunk+引用来源；7）LLM网关：模型路由、Token限流、降级、语义缓存；8）可观测性：召回率、Token消耗、引用溯源。常见错误：只做向量检索不做关键词和重排；不评估检索质量；无缓存导致重复embedding。"
+  },
+  {
+    "role": "backend",
+    "question": "大模型流式输出如何在后端实现？SSE和WebSocket如何选择？",
+    "category": "AI工程化·进阶·二面",
+    "answer": "实现方式：1）SSE（Server-Sent Events）：基于HTTP，Content-Type:text/event-stream，Flux<ServerSentEvent>或SseEmitter持续推送，客户端EventSource接收。SSE单向（服务端→客户端）、自动重连、简单可靠，适合LLM问答流式输出。Spring Boot 3.x WebFlux用Flux<ServerSentEvent>，MVC用SseEmitter。2）WebSocket：全双工，适合客户端需中途发送指令（停止生成、多轮交互），但更复杂需连接管理和心跳。选择：纯流式问答用SSE（简单、HTTP兼容）；双向实时交互用WebSocket。注意SSE需禁用Nginx缓冲（X-Accel-Buffering:no）、合理设超时。常见错误：Nginx缓冲导致SSE不实时；WebSocket不做鉴权。"
+  },
+  {
+    "role": "backend",
+    "question": "如何设计大模型API网关？Token限流和降级如何实现？",
+    "category": "AI工程化·进阶·二面",
+    "answer": "LLM API网关核心：1）多模型路由：按模型名/成本/延迟/可用性路由，支持A/B测试；2）Token限流：按TPM限流，tiktoken计算prompt token，Redis+Lua滑动窗口分布式限流；3）语义缓存：相似query缓存回答（embedding相似度>阈值命中）；4）降级熔断：主模型超时降级小模型或缓存兜底；5）成本统计：按租户/模型统计Token和费用；6）流式透传：SSE流量需流式转发不能缓冲；7）安全：Prompt注入检测、PII脱敏。开源方案LiteLLM、One API。常见错误：用QPS限流忽略Token；不支持SSE流式导致缓冲；不做多模型降级。"
+  },
+  {
+    "role": "backend",
+    "question": "向量数据库如何选型？pgvector、Milvus和Qdrant各有什么特点？",
+    "category": "AI工程化·进阶·二面",
+    "answer": "1）pgvector：PostgreSQL扩展，与业务数据同库JOIN，支持HNSW和IVFFlat，适合百万到千万级、已有PG栈，2025年成熟，是中小规模RAG首选；2）Milvus：云原生分布式存算分离，支持十亿级向量、多种索引，高可用水平扩展，但运维复杂（依赖etcd/MinIO）；3）Qdrant：Rust编写，单机性能极高（5-50ms），HNSW、payload过滤、Docker一键部署，适合追求性能简洁；4）ES支持向量+BM25混合检索。选型：<1000万用pgvector；亿级以上用Milvus；追求简洁用Qdrant。常见错误：小规模上Milvus运维负担；忽视元数据过滤性能；不评估HNSW参数影响。"
+  },
+  {
+    "role": "backend",
+    "question": "OpenTelemetry Collector架构是怎样的？为什么需要它？",
+    "category": "可观测性·进阶·二面",
+    "answer": "OTel Collector是独立代理进程，三类组件：1）Receivers：OTLP、Jaeger、Prometheus、Kafka等接收多语言SDK数据；2）Processors：batch批量、内存限制、尾部采样（基于Trace整体特征决定采样比头部采样智能）、属性过滤、K8s元数据丰富；3）Exporters：OTLP、Prometheus、Kafka、Jaeger、Tempo、Datadog等。部署模式：Agent（DaemonSet就近）和Gateway（集群级聚合）。价值：统一采集与后端解耦、尾部采样降成本、数据脱敏、批量压缩。2026年Spring Boot 3.x通过Micrometer Tracing原生集成。常见错误：不做采样导致Trace爆炸；Collector和应用同Pod抢资源；不配batch。"
+  },
+  {
+    "role": "backend",
+    "question": "eBPF如何实现无侵入可观测性？OBI是什么？",
+    "category": "可观测性·进阶·二面",
+    "answer": "eBPF允许在Linux内核安全运行沙箱程序，无需改内核或加载模块，可挂钩系统调用、kprobe/uprobe/tracepoint。在可观测性领域，eBPF从内核层观察应用，无需埋点即可自动生成RED指标和分布式追踪。OTel eBPF Instrumentation（OBI，前身Grafana Beyla，2025年捐赠OTel社区，2026年Beta）以DaemonSet部署，自动识别HTTP/gRPC/SQL/Redis/Kafka协议流量，生成OTel兼容Trace和Metric，无需重启Pod、不改代码、多语言统一覆盖。适合Go/Rust/C++等编译语言和遗留系统。但eBPF协议级埋点深度不如SDK，通常与SDK互补。常见错误：认为eBPF完全替代SDK；忽视内核版本要求（≥5.x）。"
+  },
+  {
+    "role": "backend",
+    "question": "Passkey/WebAuthn无密码认证流程是怎样的？",
+    "category": "安全·进阶·二面",
+    "answer": "WebAuthn（FIDO2核心）用公钥密码学替代密码。注册：服务端生成challenge→认证器（Touch ID/安全密钥）创建非对称密钥对→私钥存认证器，公钥+签名返回服务端存储。登录：服务端发challenge→认证器用私钥签名→服务端用公钥验签。优势：抗钓鱼（私钥与域名绑定）、无密码泄露（服务端只存公钥）、抗撞库、生物识别体验好。2026年Apple/Google/Microsoft已全面支持同步passkey。后端可用java-webauthn-server库，Spring Security 6.5+有实验性支持。常见错误：不验证challenge和RP ID；认为passkey不能跨设备；忽视账号恢复机制。"
+  },
+  {
+    "role": "backend",
+    "question": "什么是软件供应链安全？SLSA和Sigstore分别解决什么？",
+    "category": "安全·进阶·二面",
+    "answer": "供应链攻击指在构建/分发环节投毒（依赖投毒、CI/CD入侵、制品篡改），如SolarWinds、xz-utils后门。SLSA定义L1-L4安全等级，核心是Provenance（出处文档描述制品从哪个commit、由哪个平台生成）。Sigstore通过OIDC证明身份，用临时证书签名制品，签名记录在透明日志Rekor中，Cosign是签名工具。2026年后端应：依赖扫描（Trivy/Snyk）、镜像签名验证（Kyverno）、SBOM（CycloneDX/SPDX）、SLSA L3+构建平台、distroless最小基础镜像。常见错误：只扫应用漏洞不扫基础镜像；签名但不验证；不生成SBOM。"
+  },
+  {
+    "role": "backend",
+    "question": "短链接系统如何设计？2026年有哪些现代架构实践？",
+    "category": "系统设计·进阶·二面",
+    "answer": "短链设计：1）短码生成：号段模式（数据库分配ID+Base62编码，6-7位支持数百亿）；2）存储：MySQL存短码→长URL，Redis缓存热点，布隆过滤器拦截无效码；3）跳转：301永久重定向（浏览器缓存但无统计）或302临时重定向（可统计），配合CDN边缘缓存。2026现代实践：Serverless部署（GraalVM Native毫秒冷启动）；CDN边缘计算（Cloudflare Workers）在边缘直接重定向；点击日志异步发Kafka→ClickHouse分析；OTel追踪；安全防钓鱼检查。常见错误：用MD5生成短码太长且冲突；301/302不考虑统计；不做布隆过滤。"
+  },
+  {
+    "role": "backend",
+    "question": "订单超时自动取消有哪些方案？2026年推荐什么？",
+    "category": "系统设计·进阶·二面",
+    "answer": "方案：1）定时任务扫表（XXL-JOB）：简单可靠但有延迟、大数据量扫描慢（需索引+分片）；2）RocketMQ定时/延迟消息：2026年推荐，5.x支持任意时间延迟（基于时间轮），精度高、解耦、可靠；3）RabbitMQ DLX+TTL：有队头阻塞问题；4）Redis ZSet：score=过期时间，ZRANGEBYSCORE取到期，轻量但需自行实现高可用和消费确认；5）时间轮：O(1)添加但单节点宕机丢失需持久化。生产推荐RocketMQ 5.x任意延迟消息为主+扫表兜底。关键设计：取消时检查订单当前状态（可能已支付）、库存回补需幂等、取消操作重试保障、状态机驱动。2026年还可用Temporal/Cadence工作流引擎管理超时，自带重试和持久化。常见错误：用Redis Keyspace Notifications（不可靠不保证投递）；扫表不加索引；不做幂等导致重复取消。"
+  },
+  {
+    "role": "backend",
+    "question": "线上服务器CPU突然100%，排查思路是什么？",
+    "category": "项目经验·进阶·二面",
+    "answer": "排查：1）top查CPU最高进程PID；2）top -Hp PID查最高线程TID；3）printf '%x\\n' TID转十六进制；4）jstack PID|grep -A20 TID定位栈；5）若GC线程高，jstat观察GC频率，jmap -dump导出MAT分析。常见原因：死循环、频繁GC、正则回溯、大对象序列化。2026云原生环境：OTel Profile（eBPF采集CPU火焰图无需登录机器）、Arthas、Grafana Pyroscope持续Profiling。紧急处理：隔离实例→回滚最近变更→长期修复。注意jmap -dump触发Full GC，应在低峰或从节点。GraalVM Native中jstack失效需eBPF。常见错误：不保留现场就重启；只打一次jstack。"
+  },
+  {
+    "role": "backend",
+    "question": "接口响应突然变慢，如何系统性排查？可观测性体系下有什么新方法？",
+    "category": "项目经验·进阶·二面",
+    "answer": "分层排查：1）基础设施：top/CPU、free/内存、iostat/IO、网络，Grafana看趋势；2）应用：OTel Tracing查看调用链耗时，定位慢方法/SQL/下游；3）数据库：慢查询日志、EXPLAIN、SHOW PROCESSLIST锁等待；4）缓存：Redis slowlog、bigkey/hotkey、命中率；5）下游：HTTP/RPC超时和连接池。2026新方法：OTel分布式追踪一键定位慢Span；Metrics与Trace关联点击跳Trace；eBPF（OBI）无侵入自动生成RED指标；持续Profiling对比发布前后火焰图。优化：SQL加索引、缓存热点、异步化、批量替代N+1、连接池调优。常见错误：不看监控直接改代码；忽视GC和虚拟线程pinning对RT影响。"
+  },
+  {
+    "role": "backend",
+    "question": "线上OOM如何排查？JDK 17/21和容器环境有什么注意？",
+    "category": "项目经验·进阶·二面",
+    "answer": "OOM排查：1）确定类型：Java heap space（堆不足）、Metaspace（类元数据泄漏）、unable to create native thread（线程超限）、Direct buffer memory（堆外泄漏）；2）配置-XX:+HeapDumpOnOutOfMemoryError自动导出dump；3）MAT分析Dominator Tree和Leak Suspects找GC Root；4）常见原因：静态集合无限增长、未关闭资源、ThreadLocal未remove、缓存无淘汰。容器环境：JDK 10+识别容器CPU/内存，-Xmx设容器limit的70-80%留空间给Metaspace/Direct/JVM/OS；K8s设requests/limits一致。虚拟线程注意百万虚拟线程+ThreadLocal内存膨胀。常见错误：只加-Xmx不分析根因。"
+  },
+  {
+    "role": "backend",
+    "question": "请描述一次完整的JVM调优实战，JDK 17/21下如何决策GC和堆参数？",
+    "category": "项目经验·困难·三面",
+    "answer": "调优案例：Spring Boot 3.x服务大促Full GC频繁。现象：Old Gen 1小时40%→90%，FGC每5分钟STW 800ms，P99从50ms升到3s。分析：jstat观察FGC频繁回收效率低；jmap dump后MAT发现静态ConcurrentHashMap缓存80万用户对象（1.2GB）无淘汰。调整：1）代码改Caffeine，maximumSize=10000+expireAfterWrite=30min；2）JDK 21+G1：-Xms4g -Xmx4g、MaxGCPauseMillis=200；评估ZGC但堆仅4GB未切换；3）长期迁移Redis。效果：FGC从每天数百次降到0，P99恢复50ms。决策原则：先修内存泄漏再调参数；G1适合中等堆，ZGC仅大堆/低延迟时用；-Xms=-Xmx；务必压测。常见错误：一上来调GC参数不查泄漏。"
+  },
+  {
+    "role": "backend",
+    "question": "将Spring Boot 2.x迁移到3.x+GraalVM Native Image需面对哪些挑战？",
+    "category": "Spring生态·困难·三面",
+    "answer": "分两阶段。阶段一（2→3）：1）升级JDK 17/21；2）javax→jakarta全量替换；3）Spring Security 6配置迁移（WebSecurityConfigurerAdapter→SecurityFilterChain）；4）第三方依赖升级；5）在2.7先清理废弃API。阶段二（Native）：1）封闭世界假设——反射/动态代理/JNI需RuntimeHints注册；2）第三方库需GraalVM Reachability Metadata；3）构建时间8-12分钟，CI需大内存；4）Profile需构建时确定；5）JMX/Arthas失效，监控需Micrometer+OTel或eBPF；6）峰值吞吐低于JVM需压测。建议：新服务/Serverless优先Native；核心高吞吐长运行保持JVM。常见错误：不评估第三方库Native兼容性；期望Native吞吐更高。"
+  },
+  {
+    "role": "backend",
+    "question": "高并发系统中虚拟线程、WebFlux和CompletableFuture如何选型？",
+    "category": "Java基础·困难·三面",
+    "answer": "决策框架：1）大多数业务后端（CRUD、微服务、IO密集）→Spring MVC+虚拟线程：同步代码直观、JDBC生态兼容；2）超高并发+流式（网关、SSE、长连接）→WebFlux响应式：少量事件循环支撑大量连接，背压好，但需全链路响应式（R2DBC），团队需Reactor经验；3）复杂并行编排可使用虚拟线程配合CompletableFuture，并谨慎评估仍在持续演进的结构化并发API；4）CPU密集任务仍应按CPU核数控制平台线程并行度，虚拟线程不会提升计算吞吐。关键约束：JDK 24通过JEP 491消除了绝大多数synchronized导致的虚拟线程pinning，但连接池、native调用和下游容量仍可能成为瓶颈；响应式调试也有额外成本。混合架构可行。常见错误：盲目全栈响应式但使用阻塞JDBC；池化虚拟线程；把预览API描述成已稳定正式。"
+  },
+  {
+    "role": "backend",
+    "question": "千万级单表查询变慢如何设计分库分表？2026年有什么替代方案？",
+    "category": "MySQL数据库·困难·三面",
+    "answer": "先评估是否真需要：合理索引+覆盖索引+读写分离+冷数据归档通常支撑千万到亿级；MySQL 8.0 Hash Join、窗口函数可优化很多场景。需要时设计：1）分片键覆盖80%+查询WHERE避免跨片；2）策略：哈希（均匀但跨片难）、范围（归档方便但热点）；3）中间件：ShardingSphere-JDBC、Vitess；4）全局ID用Snowflake/号段；5）跨片查询用广播表、ES同步。2026替代方案：NewSQL（TiDB/CockroachDB）兼容MySQL协议自动分片，无需应用层分库分表，是趋势；云原生数据库（Aurora/PolarDB）计算存储分离读扩展强。分库分表后非分片键查询、深分页、分布式事务都变复杂。常见错误：分片键不当导致大量跨片；不做容量规划。"
+  },
+  {
+    "role": "backend",
+    "question": "MySQL深分页LIMIT 1000000,10为什么慢？现代架构下如何优化？",
+    "category": "MySQL数据库·困难·三面",
+    "answer": "LIMIT offset,n需先扫描offset+n行再丢弃前offset行，即使有索引也需大量回表。优化：1）游标分页（Seek Method）：WHERE id > last_id ORDER BY id LIMIT 10，只扫10行，适合连续翻页（Feed流），不支持跳页；2）延迟关联：INNER JOIN (SELECT id FROM t ORDER BY id LIMIT 1000000,10) tmp ON t.id=tmp.id，覆盖索引先查主键再回表；3）业务限制只翻前N页，用搜索筛选替代深翻；4）ES做复杂分页和全文检索；5）热点数据预加载Redis。现代架构：Feed流用游标分页+Redis ZSet；后台查询走ES；报表走ClickHouse。常见错误：深分页OFFSET不断增大；ORDER BY字段无索引filesort。"
+  },
+  {
+    "role": "backend",
+    "question": "设计高并发延迟队列，对比时间轮、Redis ZSet、JDK DelayQueue等数据结构方案的优劣。",
+    "category": "数据结构与算法·困难·三面",
+    "answer": "方案对比：1）JDK DelayQueue：基于最小堆，无界阻塞队列，按延迟排序，take()阻塞。简单但单机无持久化、O(logn)入队。2）Redis ZSet：score=到期时间戳，ZRANGEBYSCORE取到期消息，支持持久化和多消费者（需Lua原子popped）；但轮询有延迟、需自行实现高可用。3）时间轮（Netty/RocketMQ 5.x）：环形数组+槽+链表，添加/取消O(1)，适合大量定时任务；单轮精度有限需层级时间轮。4）RocketMQ 5.x任意延迟消息：时间轮+CommitLog，可靠持久化、高吞吐、精度高，2026生产首选。选型：单机用DelayQueue；分布式简单用Redis ZSet；高可靠用RocketMQ 5.x。常见错误：用Keyspace Notifications（不可靠）；ZSet不做原子消费致重复。"
+  },
+  {
+    "role": "backend",
+    "question": "如何保证缓存和数据库一致性？现代架构下有什么成熟方案？",
+    "category": "项目经验·困难·三面",
+    "answer": "标准Cache Aside：读先读缓存未命中读DB回填；写先更新DB再删除缓存。删除而非更新因并发写下更新缓存可能旧值覆盖新值。风险：更新DB后删缓存失败导致脏数据。成熟方案：1）Binlog订阅兜底：Canal/Debezium订阅MySQL Binlog感知变更后删除/刷新缓存，解耦可靠；2）删除失败重试：发MQ异步重试（本地消息表保证）；3）TTL最终兜底自愈。2026现代实践：用Debezium（Kafka Connect）做CDC，变更事件发Kafka，缓存更新服务消费失效Redis；OTel追踪一致性链路。常见错误：先更新缓存再更新DB；不做Binlog兜底；删除失败无重试。"
+  },
+  {
+    "role": "backend",
+    "question": "Kafka消息积压几十万条，KRaft模式下如何紧急处理和长期优化？",
+    "category": "消息队列·困难·三面",
+    "answer": "紧急处理：1）定位原因：Consumer报错重启、消费逻辑慢SQL/外部调用超时、Partition数少于消费者、Rebalance；2）临时扩容：增加消费者（不超Partition数）、调大max.poll.records批量处理；3）消费者有Bug：临时转发积压消息到更多Partition新Topic用更多消费者消费；4）非关键消息确认后重置位点跳过；5）上游临时限流。长期优化：1）监控consumer-lag（KRaft内置更完善指标，OTel采集）；2）合理设批量参数；3）消费逻辑异步化/缓存化，慢IO加超时；4）增加Partition和消费者；5）线程池并行（注意顺序和offset提交）；6）死信队列；7）压测确定消费上限。KRaft下Controller切换更快但消费机制不变。常见错误：消费者超Partition数；先提交offset再处理；Rebalance不幂等。"
+  },
+  {
+    "role": "backend",
+    "question": "深入分析Seata AT模式原理和生产坑，与事件驱动最终一致如何取舍？",
+    "category": "分布式系统·困难·三面",
+    "answer": "AT原理：TC维护全局事务，TM开启@GlobalTransactional后XID沿链路传递；RM代理数据源，一阶段执行业务SQL前查before image、执行后查after image、生成undo_log与业务SQL同本地事务提交并获全局锁；二阶段提交异步删undo_log，回滚校验after image与当前数据一致后用before image补偿，不一致告警人工介入。生产坑：1）全局锁热点——高并发热点行竞争严重；2）脏写——一阶段提交后非Seata事务改数据致回滚校验失败；3）undo_log需同库且定期清理；4）不支持NoSQL；5）AT默认读未提交。取舍：强一致短事务低并发用AT；高并发长流程用事件驱动+Outbox/CDC无全局锁性能好但无读隔离。2026趋势优先最终一致。常见错误：所有方法加@GlobalTransactional；不处理回滚失败告警。"
+  },
+  {
+    "role": "backend",
+    "question": "设计订单、库存、支付的最终一致性方案，融入2026现代实践。",
+    "category": "分布式系统·困难·三面",
+    "answer": "方案：1）订单服务创建订单（PENDING），用RocketMQ 5.x事务消息或Outbox+Debezium CDC保证本地事务和消息原子性；2）库存服务消费OrderCreated扣减库存（幂等），成功发StockDeducted；3）支付服务处理支付，成功发PaymentCompleted；4）订单服务消费事件更新状态（状态机PENDING→PAID→COMPLETED或CANCELLED）；5）失败补偿：库存不足取消订单、支付超时Saga回补库存；6）幂等：事件携带orderId，Redis去重+唯一索引；7）可靠投递：事务消息+ACK+重试+死信；8）对账兜底：定时比对各服务状态；9）Temporal工作流编排长流程Saga；10）OTel追踪事件链路。相比Seata AT无全局锁性能高但无读隔离。常见错误：不用事务消息致消息丢失；补偿不幂等；不做对账。"
+  },
+  {
+    "role": "backend",
+    "question": "如何设计微服务全链路灰度发布方案？",
+    "category": "微服务与架构·困难·三面",
+    "answer": "全链路灰度：1）流量染色：网关按规则（用户ID尾号、Header x-gray-tag）识别灰度流量打标签；2）标签透传：Feign Interceptor/gRPC拦截器/TransmittableThreadLocal在HTTP/RPC链路传递，异步线程和MQ Header也要透传；3）服务路由：注册中心灰度实例打元数据，LoadBalancer按标签路由；4）数据库：影子表/影子库或gray_flag隔离；5）MQ：灰度消息带标签，灰度消费者组单独消费；6）监控：灰度流量独立指标/日志/追踪（OTel tag gray=true），对比错误率和RT；7）回滚：网关移除规则一键切流。2026云原生：Argo Rollouts+Istio金丝雀按流量比例渐进发布，基于指标自动回滚。常见错误：灰度标签在异步/MQ中丢失；灰度和正常DB共用致数据污染。"
+  },
+  {
+    "role": "backend",
+    "question": "Serverless冷启动如何优化？GraalVM Native Image和虚拟线程有什么帮助？",
+    "category": "云原生·困难·三面",
+    "answer": "冷启动原因：实例从零开始——调度节点、拉镜像、启动容器、初始化运行时、加载框架。Java传统冷启动慢（JVM+Spring数秒），不适合短函数。优化：1）GraalVM Native Image：AOT编译为原生可执行文件，启动毫秒级（Spring Boot 3.x Native 10-50ms vs JVM 2-5s），内存大幅降低，是2026年Java Serverless首选，但构建时间长、反射受限；2）CRaC：应用预热后做检查点快照，新实例从快照恢复毫秒级，与GraalVM互斥；3）预置并发/预热实例保持最小实例数；4）AWS Lambda SnapStart类似CRaC；5）轻量化框架（Quarkus/Micronaut）对Native友好。选型：函数极短频繁触发→Native；长运行多依赖→JVM+预置实例。常见错误：期望Native吞吐更高；CRaC和GraalVM混用。"
+  },
+  {
+    "role": "backend",
+    "question": "设计生产级RAG系统，如何提升检索质量和可观测性？",
+    "category": "AI工程化·困难·三面",
+    "answer": "完整设计：1）数据层：多格式解析、智能分块（语义分块+父子文档：小块检索大块返回）、元数据标注；2）Embedding：领域适配模型（bge-m3），批量+缓存去重；3）检索：混合检索（向量HNSW+BM25）并行，RRF融合，查询改写（HyDE）；4）重排：Cross-Encoder对Top 50重排取Top 8，提升30-40%；5）上下文：相邻块拼接、Token预算、引用标注；6）LLM网关：多模型路由、Token限流、语义缓存、降级；7）Agentic RAG：LLM自主决定是否检索（2026趋势）；8）可观测性：召回率、重排分数、Token、引用，OTel GenAI语义约定；9）安全：权限过滤、Prompt注入防护；10）评估：RAGAS指标。常见错误：只做向量检索不重排；不评估不监控。"
+  },
+  {
+    "role": "backend",
+    "question": "设计AI Agent后端编排架构，如何处理工具调用、状态管理和可靠性？",
+    "category": "AI工程化·困难·三面",
+    "answer": "AI Agent架构：1）核心：LLM推理循环（ReAct：思考→调用工具→观察→再思考），支持Function Calling；2）工具注册：API统一注册到工具网关（OpenAPI/Schema），支持权限、限流、超时、重试；3）编排：简单用LangChain/LangGraph；复杂用Temporal/Cadence（持久化工作流，支持Saga、重试、补偿、人工介入）；4）状态：短期存Redis，长期记忆用向量库（RAG），结构化状态存PostgreSQL；5）可靠性：工具调用幂等（requestId）、超时熔断、指数退避、人工审核（HITL）、检查点；6）流式：SSE/WebSocket推送思考过程；7）多Agent：Kafka消息总线通信；8）可观测性：OTel GenAI语义约定追踪LLM调用；9）2026年MCP成工具调用标准。常见错误：Agent循环无上限致Token爆炸。"
+  },
+  {
+    "role": "backend",
+    "question": "完整设计高并发秒杀系统，从前端到数据库全链路说明。",
+    "category": "系统设计·困难·三面",
+    "answer": "秒杀全链路漏斗：1）前端：按钮置灰、验证码、静态资源CDN；2）接入层：Nginx+网关，IP/用户/商品维度令牌桶限流，AI风控；3）应用层：Caffeine缓存售罄标记；Redis集群预扣库存，Lua/Functions原子完成校验+扣减+一人一单；4）异步层：Kafka/RocketMQ削峰，消费者异步创建订单+扣DB库存（乐观锁UPDATE stock=stock-1 WHERE stock>0）；5）数据层：分库分表，Snowflake订单ID；6）流量过滤：CDN挡90%→网关挡70%→Redis过滤→MQ削峰→DB只处理有效订单；7）防超卖：Redis DECR+DB乐观锁双重保障；8）对账：活动后Redis与DB库存对账；9）OTel全链路追踪。2026增强：Serverless弹性、GraalVM Native快速启动。常见错误：同步直达DB；不做限流。"
+  },
+  {
+    "role": "backend",
+    "question": "设计亿级用户Feed流系统（类似微博/朋友圈）。",
+    "category": "系统设计·困难·三面",
+    "answer": "Feed流设计：1）模型：User、Follow（Redis ZSet/图库）、Post（MySQL分库分表+ES+对象存储）；2）推拉模式：拉模式刷新时查关注者Feed合并适合粉丝少；推模式发布时写入所有粉丝收件箱适合普通用户但大V写放大；混合模式：大V不推粉丝刷新时单独拉大V时间线合并，普通用户推送；3）收件箱：Redis ZSet按时间戳排序，游标分页（ZREVRANGE用max游标），只存最近1000条，更早查ES/DB；4）大V处理：粉丝超阈值不推，在线拉取合并，缓存预热；5）计数：Redis计数器异步落DB；6）2026增强：Feed推荐用向量召回+重排（从时间序到兴趣排序），AI生成摘要；推模式用Kafka分区扩展写扩散。常见错误：纯推模式大V写爆；收件箱不设上限内存爆炸；OFFSET深分页。"
+  },
+  {
+    "role": "backend",
+    "question": "线上MySQL频繁死锁，描述完整排查和解决过程。",
+    "category": "项目经验·困难·三面",
+    "answer": "排查：1）SHOW ENGINE INNODB STATUS查看LATEST DETECTED DEADLOCK，分析两事务SQL、持有和等待的锁；2）开启innodb_print_all_deadlocks=1记录所有死锁；3）分析加锁顺序——是否不同事务以不同顺序锁定资源；4）检查索引：条件未命中索引锁更大范围增加死锁概率。解决：1）统一加锁顺序：所有事务按相同顺序访问资源（如按ID升序）从根本消除循环等待；2）缩短事务避免持锁过久；3）合理用索引减少锁范围；4）MySQL 8.0可考虑RC隔离级别减少间隙锁；5）用SKIP LOCKED/NOWAIT避免锁等待；6）高并发热点行关闭innodb_deadlock_detect配合重试；7）捕获死锁异常业务重试。案例：转账两事务反向更新死锁，改按账户ID升序加锁后解决。常见错误：死锁只重试不分析根因。"
+  },
+  {
+    "role": "backend",
+    "question": "大促前如何做全链路容量规划和压测？云原生和可观测性下有什么新实践？",
+    "category": "项目经验·困难·三面",
+    "answer": "容量规划：1）确定目标：运营预估峰值QPS、P99 RT、容错率；2）链路梳理：通过OTel Tracing梳理服务依赖和薄弱点自动生成拓扑；3）单机压测：每服务单实例压测确定极限QPS和水位（CPU<70%），实例数=峰值QPS/单机QPS×冗余1.5；4）全链路压测：生产影子库/表，流量回放（GoReplay）或AI仿真流量，梯度加压找瓶颈；5）瓶颈优化：慢SQL加索引、连接池扩容、缓存扩容、JVM调优、异步化、虚拟线程评估；6）依赖容量：DB QPS/主从延迟、Redis QPS/内存、MQ堆积/分区、带宽、K8s资源；7）预案：限流阈值、降级开关、HPA弹性、熔断、GraalVM Native快速扩容；8）2026新实践：eBPF无侵入自动生成压测RED指标；Pyroscope对比火焰图；Chaos Mesh混沌工程。常见错误：只压单服务不压全链路。"
+  },
+  {
+    "role": "backend",
+    "question": "Service Mesh大规模微服务如何落地？Sidecar和Ambient如何决策？",
+    "category": "云原生·困难·三面",
+    "answer": "Mesh落地路径：1）明确目标：mTLS加密、流量治理、灰度发布、可观测性统一；2）选型：Istio功能最全但复杂，Cilium基于eBPF更轻量，Linkerd轻量简单；3）渐进接入：先非核心服务开启mTLS和可观测性，再灰度流量治理；4）数据面——Sidecar：功能完整成熟，但资源开销大（50-100MB+0.1-0.5vCPU）、启动延迟、需重启Pod，适合L7全功能；Ambient（2026推进GA）：ztunnel每节点L4（mTLS/L4策略/遥测，资源省、无需重启），Waypoint按命名空间可选L7（路由/重试/L7策略），L7从2跳变1跳可独立伸缩，适合大规模资源敏感场景；5）控制面高可用和多集群；6）可观测性：Mesh Trace/Metric通过OTel Collector统一采集，eBPF补充无侵入数据。常见错误：一刀切上Sidecar。"
+  },
+  {
+    "role": "backend",
+    "question": "如何建设全链路可观测性体系？OpenTelemetry和eBPF如何结合？",
+    "category": "可观测性·困难·三面",
+    "answer": "体系建设：1）三大支柱统一：Trace、Metric、Log通过OTel关联，TraceID贯穿日志指标；2）采集：应用集成OTel SDK（Spring Boot 3.x自动接入）生成业务Span；eBPF（OBI）DaemonSet无侵入采集RED指标和Trace，覆盖Go/Rust/C++等难埋点服务，互补（eBPF广度、SDK深度）；3）Collector：Agent+Gateway两级，尾部采样保留错误/慢Trace降成本、批量、K8s元数据丰富；4）存储：Trace存Tempo、Metric存Prometheus、Log存Loki；5）关联：Grafana从Metric跳Trace跳Log，TraceID注入日志MDC；6）告警：RED和USE方法论，SLO驱动；Pyroscope持续Profiling。常见错误：只做Trace不关联Metric/Log。"
+  }
+]

@@ -1,0 +1,602 @@
+[
+  {
+    "role": "frontend",
+    "question": "请解释JavaScript中的原型链机制，以及它是如何实现继承的？",
+    "category": "JavaScript/TypeScript·基础·一面",
+    "answer": "每个对象都有内部链接[[Prototype]]（通过__proto__或Object.getPrototypeOf访问）指向其原型对象，形成链式结构即原型链。当访问对象属性时，若自身没有则沿原型链向上查找直到null。构造函数的prototype属性指向实例的原型，原型的constructor指回构造函数。ES6 class本质是原型继承的语法糖，extends通过Object.setPrototypeOf建立静态继承链并调用super()。常见错误：将__proto__与prototype混为一谈；认为class实现了全新的继承模型而非语法糖；不知道原型链终点是null。加分项：能说明Object.create(null)创建无原型对象的用途。"
+  },
+  {
+    "role": "frontend",
+    "question": "什么是闭包？请举一个实际开发中使用闭包的场景。",
+    "category": "JavaScript/TypeScript·基础·一面",
+    "answer": "闭包是函数与其词法作用域的组合，使内部函数可以访问外部函数作用域中的变量，即使外部函数已执行完毕。其原理是JavaScript函数在创建时会保存对所在词法环境的引用，形成作用域链。实际场景包括：防抖/节流函数用闭包保存timer变量；模块模式用IIFE创建私有变量；柯里化函数通过闭包累积参数。React 的 useRef 虽然也能跨渲染保存可变值，但它由 React 的 Hook 状态机制实现，不应简单归因于业务代码中的闭包。常见错误：认为闭包必然导致内存泄漏——实际只要引用被正确释放，GC可回收；不了解循环中var导致的闭包陷阱（let块级作用域可解决）。"
+  },
+  {
+    "role": "frontend",
+    "question": "请描述JavaScript的事件循环（Event Loop）机制，宏任务和微任务有什么区别？",
+    "category": "JavaScript/TypeScript·基础·一面",
+    "answer": "JavaScript单线程通过事件循环实现异步。调用栈清空后，事件循环先清空所有微任务队列（microtask），再渲染UI，然后取一个宏任务（macrotask）执行，重复此过程。微任务包括Promise.then/catch/finally、queueMicrotask、MutationObserver；宏任务包括setTimeout、setInterval、I/O、UI事件、MessageChannel。关键顺序：每个宏任务执行完后、下一个宏任务开始前，会清空全部微任务。Node.js中微任务在每个阶段切换时清空，process.nextTick优先级高于Promise微任务。常见错误：认为setTimeout(fn,0)立即执行；不理解await后面的代码相当于then回调属于微任务；混淆Node.js与浏览器事件循环的阶段差异。"
+  },
+  {
+    "role": "frontend",
+    "question": "TypeScript中interface和type有什么区别？分别在什么场景下使用？",
+    "category": "JavaScript/TypeScript·基础·一面",
+    "answer": "两者都可描述对象结构，但有关键区别：interface支持声明合并（同名自动合并），type不支持；type可定义联合类型、交叉类型、元组、映射类型等，interface仅限于对象/函数类型；interface使用extends继承，type使用交叉类型&组合；class可以implements interface或type（对象类型）。推荐场景：定义公共API的对象形状用interface以便扩展；定义联合类型、工具类型、条件类型用type；React组件Props两者皆可，但项目应保持一致。常见错误：不知道interface可被class implements；认为type只是别名不能被扩展（实际可用交叉类型）；不了解声明合并在第三方库类型扩展中的作用。"
+  },
+  {
+    "role": "frontend",
+    "question": "请解释JavaScript中的this绑定规则，箭头函数的this有什么特殊之处？",
+    "category": "JavaScript/TypeScript·基础·一面",
+    "answer": "this的绑定有四条规则，优先级从高到低：new绑定、显式绑定（call/apply/bind）、隐式绑定（对象方法调用）、默认绑定（独立函数调用，严格模式为undefined）。箭头函数没有自己的this，继承定义时外层作用域的this，且无法通过call/apply/bind改变，也不能作为构造函数。这也是React类组件中用箭头函数定义方法可避免bind的原因。常见错误：认为this指向函数自身；认为箭头函数的this在调用时确定（实际是定义时）；不知道严格模式下默认绑定为undefined。"
+  },
+  {
+    "role": "frontend",
+    "question": "什么是JavaScript的暂时性死区（TDZ）？let/const与var有什么本质区别？",
+    "category": "JavaScript/TypeScript·基础·一面",
+    "answer": "let/const声明的变量在作用域开始到声明语句执行之间存在暂时性死区，访问会抛出ReferenceError。var存在变量提升，声明被提升到作用域顶部并初始化为undefined。let/const也有提升但不初始化，形成TDZ。其他区别：var是函数作用域，let/const是块级作用域；var可重复声明，let/const不可；const必须初始化且绑定不可重新赋值（但对象属性可变）。常见错误：认为let/const没有提升；不了解TDZ导致的报错；混淆const的不可变绑定与不可变值。"
+  },
+  {
+    "role": "frontend",
+    "question": "请解释Flexbox布局中justify-content和align-items的区别，以及flex:1的含义。",
+    "category": "CSS·基础·一面",
+    "answer": "Flex容器有主轴和交叉轴，justify-content控制主轴方向上的对齐（flex-start/center/space-between/space-around/space-evenly），align-items控制交叉轴方向上的对齐（stretch/flex-start/center/baseline）。主轴方向由flex-direction决定，默认为row。flex:1是flex-grow:1、flex-shrink:1、flex-basis:0%的缩写，表示该项目在容器有剩余空间时等比放大、空间不足时等比缩小、基础大小为0。常见错误：在flex-direction:column时仍认为justify-content控制水平方向；不了解align-items默认值是stretch；混淆flex:1与flex:auto（后者basis为auto）。"
+  },
+  {
+    "role": "frontend",
+    "question": "CSS中BFC（块级格式化上下文）是什么？如何触发？它能解决什么问题？",
+    "category": "CSS·基础·一面",
+    "answer": "BFC是一个独立的渲染区域，内部元素布局不影响外部。触发方式：float不为none、position为absolute/fixed、display为inline-block/table-cell/flex/grid等、overflow不为visible、contain为layout等。BFC特性：内部块盒垂直排列；垂直margin会折叠但不同BFC间不会；BFC区域不与浮动元素重叠（可实现自适应布局）；计算高度时浮动元素也参与（可清除浮动）。常见错误：以为overflow:hidden万能清除浮动但会裁剪内容；不了解margin折叠条件；不知道display:flex本身创建BFC。"
+  },
+  {
+    "role": "frontend",
+    "question": "请说明CSS选择器的优先级（特异性）计算规则。",
+    "category": "CSS·基础·一面",
+    "answer": "优先级用四元组(a,b,c,d)表示：a为内联样式，b为ID选择器数量，c为类/属性/伪类选择器数量，d为元素/伪元素选择器数量。从左到右比较，左侧大则优先级高，不进位。!important最高；同优先级后定义胜出。继承样式优先级最低，通配符优先级为0。常见错误：认为class数量可超过ID（11个class仍不如1个ID）；不了解:where()优先级为0而:is()和:not()取参数中最高的；忽略!important的顺序规则。"
+  },
+  {
+    "role": "frontend",
+    "question": "什么是CSS层叠（Cascade）？样式冲突时浏览器如何决定最终样式？",
+    "category": "CSS·基础·一面",
+    "answer": "CSS层叠顺序：1)重要性和来源（用户代理<用户<作者<作者!important<用户!important）；2)@layer层叠层顺序，未分层样式优先级最高；3)选择器特异性；4)源码顺序。@layer允许显式控制层叠顺序，后声明的层优先级更高，但未分层样式始终在分层样式之上。继承属性从父元素继承，非继承属性用初始值。常见错误：不了解@layer优先级机制；误以为!important无法被覆盖；不了解all:revert和unset区别。"
+  },
+  {
+    "role": "frontend",
+    "question": "请解释CSS盒模型，box-sizing的content-box和border-box有什么区别？",
+    "category": "CSS·基础·一面",
+    "answer": "CSS盒模型由content、padding、border、margin组成。content-box（默认）下width只设内容区，实际占据宽度=width+padding+border。border-box下width包含content+padding+border，实际宽度就是width。border-box更直观，通常全局设置。margin不计入盒模型宽度但影响外部间距。常见错误：在border-box下仍手动减padding；混淆margin折叠——相邻块级元素垂直margin取较大值而非相加。"
+  },
+  {
+    "role": "frontend",
+    "question": "React中useState和useRef有什么区别？分别在什么场景下使用？",
+    "category": "React·基础·一面",
+    "answer": "useState返回状态值和更新函数，状态变化触发重渲染；useRef返回可变ref对象，.current可保存任意值，修改不触发渲染。useState用于反映到UI的响应式数据；useRef用于保存DOM引用、跨渲染周期的可变值（计时器ID、上一次值）、不需要触发渲染的值。useState更新是异步批处理；useRef.current同步读写。常见错误：在渲染期间直接修改state；用useRef保存需渲染的数据；混淆ref回调与useRef。"
+  },
+  {
+    "role": "frontend",
+    "question": "请解释React中useEffect的依赖数组工作原理，以及常见的坑。",
+    "category": "JavaScript/TypeScript·基础·一面",
+    "answer": "useEffect在渲染提交后异步执行，依赖数组通过Object.is比较决定是否重新执行。空数组仅挂载时执行；省略数组每次渲染后执行；有依赖时变化则先cleanup再执行。常见坑：遗漏依赖导致stale closure；依赖对象/函数导致无限循环；数据请求未清理竞态（应用AbortController）；把useEffect当watch。React 19的React Compiler可自动优化不必要的effect。常见错误：effect中更新state引发无限循环；不了解effect在paint之后执行。"
+  },
+  {
+    "role": "frontend",
+    "question": "React中key的作用是什么？为什么不要用数组index作为key？",
+    "category": "React·基础·一面",
+    "answer": "key帮助Reconciliation算法识别元素增删排序，高效更新DOM。key稳定时复用DOM节点；变化时销毁重建。用index作key在列表插入/删除/排序时会变化，导致组件状态错位。应使用数据唯一ID。仅在列表静态、不重排、无筛选时可用index。常见错误：认为key只为消除警告；不了解key同层唯一即可；用Math.random()作key导致每次重建DOM。"
+  },
+  {
+    "role": "frontend",
+    "question": "React的受控组件和非受控组件有什么区别？",
+    "category": "React·基础·一面",
+    "answer": "受控组件表单数据由React state管理，通过value绑定、onChange更新，可实时校验。非受控组件数据由DOM管理，通过ref获取值。React 19中form action配合Server Actions简化了非受控表单，useFormStatus获取提交状态。文件输入始终是非受控的。常见错误：给非受控组件设value不设onChange导致警告；在受控组件中用defaultValue；不了解defaultValue仅初始挂载生效。"
+  },
+  {
+    "role": "frontend",
+    "question": "Vue 3的Composition API相比Options API有什么优势？",
+    "category": "Vue·基础·一面",
+    "answer": "Composition API优势：1)更好的逻辑复用——抽取composables函数替代mixin的命名冲突；2)更灵活的代码组织——相关逻辑放在一起；3)更好的TypeScript支持——基于函数和变量，类型推断更自然；4)更小的生产包——函数API更易tree-shaking。Options API仍被支持且对初学者友好。常见错误：认为Composition API必须用script setup；在setup中使用this（没有this）。"
+  },
+  {
+    "role": "frontend",
+    "question": "Vue 3中ref和reactive有什么区别？什么时候用ref？",
+    "category": "Vue·基础·一面",
+    "answer": "ref可包装任意类型，通过.value访问（模板自动解包）；reactive只能用于引用类型，基于Proxy，直接访问属性。ref重新赋值整个对象不丢响应性，reactive替换整个对象会丢失。推荐基本类型用ref，对象需整体替换或传props时用ref。Vue 3.5中解构defineProps变量保持响应式。常见错误：解构reactive丢失响应性（需toRefs）；混淆浅层ref模板解包规则。"
+  },
+  {
+    "role": "frontend",
+    "question": "Vue中v-if和v-show有什么区别？如何选择？",
+    "category": "Vue·基础·一面",
+    "answer": "v-if是真正条件渲染，false时不渲染到DOM，切换时销毁重建，切换开销高。v-show通过display:none控制，元素始终在DOM中，初始渲染开销高。v-if可配v-else，v-show不能。频繁切换用v-show，条件少变用v-if。应避免v-if与v-for同时使用。常见错误：在v-show上期望v-if的生命周期效果；不了解v-if为false时内部组件不执行onMounted。"
+  },
+  {
+    "role": "frontend",
+    "question": "请描述浏览器从输入URL到页面渲染完成的完整过程。",
+    "category": "浏览器原理·基础·一面",
+    "answer": "1)URL解析与DNS查询；2)TCP连接（三次握手，HTTPS加TLS握手）；3)发送HTTP请求；4)服务器返回HTML；5)解析HTML构建DOM，CSS构建CSSOM，JS可能阻塞解析；6)DOM+CSSOM合成渲染树；7)布局计算位置大小；8)绘制生成图层；9)合成显示。CSS放头部避免FOUC，JS放底部或defer。常见错误：不了解defer顺序执行且在DOMContentLoaded前，async下载完即执行。"
+  },
+  {
+    "role": "frontend",
+    "question": "浏览器的本地存储有哪些方式？它们有什么区别？",
+    "category": "浏览器原理·基础·一面",
+    "answer": "localStorage持久化5-10MB同步API；sessionStorage会话级关闭标签清除；Cookie 4KB随请求发送可设HttpOnly/Secure/SameSite；IndexedDB大容量NoSQL异步支持事务；Cache API配合Service Worker缓存请求响应；SharedStorage跨站隔离存储。认证Token用HttpOnly Cookie防XSS；大量数据用IndexedDB。常见错误：Cookie存大数据影响性能；不了解localStorage同源策略；混淆sessionStorage标签页隔离。"
+  },
+  {
+    "role": "frontend",
+    "question": "什么是重排（Reflow）和重绘（Repaint）？如何减少它们的影响？",
+    "category": "浏览器原理·基础·一面",
+    "answer": "重排是重新计算元素几何属性（位置大小），由DOM增删、尺寸变化、读取offsetWidth等触发。重绘是外观变化不影响布局时重新绘制。重排必引发重绘。优化：批量修改DOM（DocumentFragment）；用transform/opacity做动画（只触发合成层）；缓存布局属性；will-change提示创建合成层。常见错误：循环中读取offsetWidth强制同步布局；不了解读写分离可避免布局抖动。"
+  },
+  {
+    "role": "frontend",
+    "question": "请解释浏览器的同源策略以及跨域解决方案。",
+    "category": "浏览器原理·基础·一面",
+    "answer": "同源策略要求协议、域名、端口完全相同，限制DOM访问、存储读取和AJAX。方案：CORS（服务端设Access-Control-Allow-Origin，非简单请求先发OPTIONS预检）；JSONP（script标签仅GET）；代理服务器（Vite proxy/Nginx）；postMessage（跨窗口通信）；WebSocket不受限。常见错误：认为CORS是漏洞；不了解带Cookie请求需credentials和具体Origin（不能用*）。"
+  },
+  {
+    "role": "frontend",
+    "question": "什么是Core Web Vitals？包含哪些核心指标？",
+    "category": "性能优化·基础·一面",
+    "answer": "Core Web Vitals三大指标：LCP（最大内容绘制，加载性能，阈值2.5s）；INP（交互到下次绘制，响应性，阈值200ms，2024年3月替代FID，测量所有交互的最差延迟而非仅首次）；CLS（累积布局偏移，视觉稳定性，阈值0.1）。INP包含输入延迟+处理时间+呈现延迟三阶段。常见错误：仍引用FID；不了解INP阈值200ms而非FID的100ms；不知道INP取第98百分位。"
+  },
+  {
+    "role": "frontend",
+    "question": "前端图片加载有哪些优化手段？",
+    "category": "性能优化·基础·一面",
+    "answer": "1)WebP/AVIF格式减少30%-50%体积，picture做多格式降级；2)srcset+sizes响应式图片；3)loading=lazy原生懒加载；4)preload关键图片；5)CDN自动裁剪；6)LQIP/SQIP占位减少CLS；7)设置width/height避免布局偏移。常见错误：lazy加载首屏图片影响LCP；不设宽高导致CLS。"
+  },
+  {
+    "role": "frontend",
+    "question": "请解释Vite的开发服务器为什么比Webpack快？",
+    "category": "工程化·基础·一面",
+    "answer": "Vite开发利用浏览器原生ESM，无需打包即启动。机制：1)esbuild预构建依赖（Go编写比JS快10-100倍）；2)源码以原生ESM按需编译，只编译浏览器请求的模块；3)HMR基于ESM精确失效模块。生产构建默认Rollup（Vite 6实验性Rolldown）。常见错误：以为生产也用esbuild打包；不了解预构建作用（合并模块、转换CJS）。"
+  },
+  {
+    "role": "frontend",
+    "question": "Git中merge和rebase有什么区别？什么场景下使用rebase？",
+    "category": "工程化·基础·一面",
+    "answer": "merge创建合并提交保留完整历史但图复杂；rebase将提交逐个重放到目标顶端，产生线性历史但改写哈希。场景：功能分支同步主分支用rebase保持线性；合并前用rebase -i压缩提交。黄金法则：不对已推送的共享分支rebase。常见错误：公共分支rebase导致force push覆盖他人代码。"
+  },
+  {
+    "role": "frontend",
+    "question": "HTTP/1.1、HTTP/2和HTTP/3的主要区别是什么？",
+    "category": "网络与安全·基础·一面",
+    "answer": "HTTP/1.1文本协议，Keep-Alive但有队头阻塞，同域名6个TCP连接。HTTP/2二进制分帧，多路复用同一TCP并行传输，HPACK头部压缩，Server Push已废弃。HTTP/3基于QUIC（UDP），解决TCP层队头阻塞（单流丢包不影响其他流），0-RTT建连，内置TLS 1.3，连接迁移。常见错误：认为HTTP/2完全解决队头阻塞（TCP层仍有）；不了解HTTP/3用UDP。"
+  },
+  {
+    "role": "frontend",
+    "question": "什么是XSS攻击？如何防御？",
+    "category": "网络与安全·基础·一面",
+    "answer": "XSS分存储型、反射型、DOM型。防御：输出转义；框架默认转义（不用v-html）；CSP头部限制脚本来源；HttpOnly Cookie防窃取；输入校验。2026年需关注AI输出污染——LLM生成的Markdown/HTML可能含XSS，渲染前必须用DOMPurify消毒。常见错误：认为模板插值绝对安全（v-html场景仍危险）。"
+  },
+  {
+    "role": "frontend",
+    "question": "Next.js的SSR、SSG和ISR分别是什么？如何选择？",
+    "category": "跨端与框架·基础·一面",
+    "answer": "SSR每次请求动态生成HTML；SSG构建时预渲染静态HTML性能最好；ISR运行时按需重新验证，通过revalidate时间或on-demand触发。Next.js 15中App Router默认Server Components，结合PPR可在同页面混合静态外壳和动态流式内容。营销页用SSG，仪表盘用SSR，电商页用ISR。常见错误：将SSR与RSC混为一谈——RSC返回序列化UI描述而非HTML。"
+  },
+  {
+    "role": "frontend",
+    "question": "什么是流式渲染（Streaming）？在AI对话场景中为什么需要它？",
+    "category": "AI应用前端·基础·一面",
+    "answer": "流式渲染将响应逐块发送，客户端接收一块渲染一块。LLM逐token生成需数秒到数十秒，流式渲染实现逐字打字机效果，大幅降低TTFT。技术上服务端用SSE（Content-Type: text/event-stream）或ReadableStream，前端fetch+ReadableReader读取。Vercel AI SDK的useChat封装了消息列表、加载状态、错误处理和工具调用。常见错误：用await response.json()等完整响应导致白屏；不处理流中断重试。"
+  },
+  {
+    "role": "frontend",
+    "question": "Promise.all、Promise.allSettled、Promise.race和Promise.any有什么区别？请举一个实际业务场景。",
+    "category": "JavaScript/TypeScript·进阶·一面",
+    "answer": "Promise.all全部fulfilled才fulfilled，任一rejected立即rejected（快速失败），适合多个无依赖的并行请求。allSettled等所有Promise完成（无论成败），返回每个结果状态，适合批量操作需知每个结果（如批量删除部分失败）。race取第一个settled的结果（无论成败），适合超时控制（与setTimeout包装的reject竞赛）。any取第一个fulfilled的，全部rejected才抛AggregateError，适合多源获取（CDN备灾）。业务场景：Dashboard页面并行请求多个卡片数据用Promise.all，但一个接口失败会导致整页错误，改用allSettled分别展示成功/失败卡片。常见错误：不了解allSettled不会reject需检查status；在all中忘记catch导致未处理rejection。"
+  },
+  {
+    "role": "frontend",
+    "question": "请实现一个深拷贝函数，并说明需要处理哪些边界情况。",
+    "category": "JavaScript/TypeScript·进阶·二面",
+    "answer": "深拷贝需处理：1)基本类型直接返回；2)Date返回新Date；3)RegExp保留source和flags；4)Map/Set递归拷贝；5)Array和Object递归；6)循环引用用WeakMap缓存；7)Symbol键用Reflect.ownKeys；8)函数通常共享引用。structuredClone（Node 17+/现代浏览器）原生支持大部分类型，但不拷贝函数、原型链、getter/setter。项目中优先用structuredClone或lodash.cloneDeep，手写仅用于理解。常见错误：用JSON.parse(JSON.stringify())丢失Date/undefined/Function且循环引用报错；不处理循环引用导致栈溢出；忽略Symbol键。"
+  },
+  {
+    "role": "frontend",
+    "question": "TypeScript中的泛型约束（extends）和条件类型（Conditional Types）如何使用？请举一个实际例子。",
+    "category": "JavaScript/TypeScript·进阶·二面",
+    "answer": "泛型约束用extends限制类型参数结构，如function getProperty<T,K extends keyof T>(obj:T,key:K):T[K]确保key合法。条件类型T extends U?X:Y做类型层面判断，结合infer推断类型，如ReturnType<T>=T extends(...args:any)=>infer R?R:never。分布式条件类型在联合类型上自动分配。实际场景：封装API请求时根据路径推断响应类型；用条件类型实现类型安全事件发射器。常见错误：不了解infer只能在条件类型extends子句中使用；不知道条件类型对never的特殊行为。"
+  },
+  {
+    "role": "frontend",
+    "question": "在一个大型列表页面上，用户反馈滚动卡顿。请描述你的排查思路。",
+    "category": "项目经验·进阶·二面",
+    "answer": "排查：1)Performance面板录制滚动，查看Long Tasks和Layout Shift；2)检查scroll事件中DOM读写（强制同步布局），用rAF或IntersectionObserver替代；3)确认是否全量渲染（数百项以上用虚拟滚动）；4)检查滚动回调中复杂计算或React重渲染（Profiler查看）；5)检查非合成层动画（width/height引发重排，改transform）；6)Layers面板查看图层数量；7)Rendering面板Paint flashing检查不必要重绘。优化：passive事件监听器、content-visibility:auto跳过不可见区域、will-change提示合成层。常见错误：scroll回调直接操作style；未用passive阻塞touchmove。"
+  },
+  {
+    "role": "frontend",
+    "question": "TypeScript 5.x的const类型参数（const type parameters）解决了什么问题？",
+    "category": "JavaScript/TypeScript·进阶·二面",
+    "answer": "const类型参数在泛型函数中保留字面量类型推断，无需调用方写as const。例如：function createEnum<const T extends string>(values: T[]): T[]，传入['a','b']会推断为('a'|'b')[]而非string[]。此前需调用方写values: readonly T[]或as const。const修饰符让数组和对象推断为最窄的字面量类型（readonly），在定义常量映射、路由表、枚举工厂等场景非常实用。注意：const类型参数推断的值是readonly的，若需可变需在函数内做一次拷贝或用-mutable映射类型。常见错误：不了解const参数与as const的细微差异——const参数仅在推断层面收窄，不影响运行时；不知道TS 5.0引入此特性。"
+  },
+  {
+    "role": "frontend",
+    "question": "在异步操作中如何做好错误处理？请结合async/await和Promise说明最佳实践。",
+    "category": "项目经验·进阶·二面",
+    "answer": "最佳实践：1)async/await用try/catch，区分网络错误、业务错误码、超时；2)不要静默吞错误，至少记录日志并提示用户；3)Promise链末尾统一.catch()避免unhandledRejection；4)并行用Promise.allSettled获取部分成功；5)全局监听unhandledrejection兜底上报；6)AbortController取消不需要的请求；7)重试用指数退避，仅幂等请求重试；8)自定义Error类携带错误码。常见错误：try/catch包裹不抛异常的回调；catch中又抛异常未捕获；不处理请求竞态（旧请求覆盖新结果）。"
+  },
+  {
+    "role": "frontend",
+    "question": "WeakMap和WeakSet与Map/Set有什么区别？它们在什么场景下有用？",
+    "category": "JavaScript/TypeScript·进阶·二面",
+    "answer": "核心区别：WeakMap/WeakSet的键必须是对象，且是弱引用——当对象没有其他强引用时，GC可回收该条目，不会阻止垃圾回收。WeakMap不可枚举（无keys/entries/forEach/size），因为GC时机不确定，枚举结果可能不一致。使用场景：1)给外部对象关联私有数据而不阻止其回收（如DOM节点关联元数据，节点移除后自动清理）；2)缓存计算结果（以对象为key，对象销毁缓存自动释放）；3)Vue 3响应式系统用WeakMap存储对象的依赖关系。4)类的私有字段模拟（WeakMap以实例为key存私有值）。常见错误：尝试用基本类型作为WeakMap键（TypeError）；期望WeakMap可遍历；不理解弱引用导致\"数据消失\"——这是正常的GC行为。"
+  },
+  {
+    "role": "frontend",
+    "question": "TypeScript的isolatedDeclarations是什么？它对项目有什么影响？",
+    "category": "JavaScript/TypeScript·进阶·二面",
+    "answer": "isolatedDeclarations是TS 5.5引入的编译选项，要求每个导出的函数、类、变量必须有显式类型注解，不能依赖跨文件类型推断。背景是现代构建工具（esbuild、SWC、Rspack）逐文件转译，无法做跨文件类型分析来生成.d.ts声明文件。开启后：1)导出函数必须标注参数和返回类型；2)导出变量必须标注类型；3)不能用as const导出后让其他文件推断（需显式声明）；4)接口/类型别名本身不受影响。这对库作者影响最大，因为发布包需要.d.ts声明。项目中配合Vite 6/Rspack等基于SWC/esbuild的工具链使用，可显著加速构建。常见错误：开启后大量导出缺少类型注解报错；不了解这是为单文件转译工具服务的约束。"
+  },
+  {
+    "role": "frontend",
+    "question": "CSS Container Queries（@container）解决了什么问题？与媒体查询有什么本质区别？",
+    "category": "CSS·进阶·一面",
+    "answer": "@container允许组件根据其容器元素的尺寸而非视口尺寸来响应式调整样式，实现真正的组件级自适应。媒体查询基于视口尺寸，同一组件在页面不同位置（侧边栏vs主区域）无法差异化响应。用法：父容器设置container-type: inline-size（或container简写），子元素用@container (min-width: 400px)设置条件样式。典型场景：卡片组件在窄容器中垂直布局，在宽容器中水平布局；组件库设计无需关心宿主环境。2026年所有现代浏览器均已支持。常见错误：忘记在容器上设置container-type导致查询不生效；混淆container-type:inline-size（仅宽度）和size（宽高都查，性能开销大）；不了解container-name可指定查询特定容器。"
+  },
+  {
+    "role": "frontend",
+    "question": "CSS的:has()选择器有什么用途？请举几个实际应用场景。",
+    "category": "CSS·进阶·二面",
+    "answer": ":has()是\"父选择器\"或\"关系选择器\"，允许根据后代元素的存在或状态来选择祖先或前序兄弟元素。场景：1)表单校验：.field:has(input:invalid) .error-msg显示错误信息；2)卡片含图片时调整布局：.card:has(img) .text加padding；3)导航高亮：.nav-item:has(.dropdown)加箭头；4)空状态：.container:has(:empty)显示占位；5)与@container结合实现智能布局。浏览器支持：Chrome 105+、Safari 15.4+、Firefox 121+，2026年全球支持率超96%。常见错误：以为:has()性能很差（现代浏览器已优化，但仍应避免过深嵌套）；不了解:has()中可使用复杂选择器组合（如:has(> .child)）。"
+  },
+  {
+    "role": "frontend",
+    "question": "CSS原生嵌套（CSS Nesting）与Sass/Less嵌套有什么区别？使用时需要注意什么？",
+    "category": "CSS·进阶·二面",
+    "answer": "CSS原生嵌套（2023年起所有现代浏览器支持）直接在样式规则中嵌套子规则，无需预处理器。区别：1)原生嵌套中嵌套选择器不能以标识符开头（如.color{}需写为& .color或{...}包裹），但CSS Nesting Module Level 4已放宽此限制，Chrome 120+支持直接嵌套；2)原生嵌套的&是真实选择器引用，在浏览器运行时解析；3)原生嵌套支持@layer、@media等at-rule嵌套；4)Sass嵌套在构建时编译展开，原生在浏览器解析。注意：原生嵌套会增加选择器复杂度和样式计算成本，避免过深嵌套（建议不超过3层）；@media在嵌套中会自动合并到外层选择器。常见错误：在旧浏览器中直接用原生嵌套无降级；嵌套过深导致选择器特异性过高难以覆盖。"
+  },
+  {
+    "role": "frontend",
+    "question": "View Transitions API是什么？如何在多页应用（MPA）和SPA中使用？",
+    "category": "CSS·进阶·三面",
+    "answer": "View Transitions API提供原生页面/组件切换动画，浏览器自动截取旧/新状态快照做淡入淡出。SPA中调用document.startViewTransition(callback)，callback更新DOM，用::view-transition-old/new伪元素自定义动画。MPA中Chrome支持跨文档View Transitions，只需CSS加@view-transition{navigation:auto}，无需JS。典型场景：列表到详情共享元素过渡、主题切换、标签页切换。过渡期间浏览器创建快照元素，可用view-transition-name指定共享元素。常见错误：不了解MPA跨文档支持有限且需same-origin；回调中异步操作导致延迟。"
+  },
+  {
+    "role": "frontend",
+    "question": "CSS Anchor Positioning解决了什么问题？它相比传统定位方案有什么优势？",
+    "category": "CSS·进阶·三面",
+    "answer": "Anchor Positioning允许元素相对锚点元素定位，无需JS计算坐标，自动处理边缘翻转。核心API：anchor-name定义锚点，position-anchor引用，position-area设置位置（top/bottom），position-try-fallbacks设置空间不足时备选位置（flip-block）。场景：Tooltip、Popover、下拉菜单。相比JS的getBoundingClientRect+scroll方案，CSS在布局阶段直接计算，自动响应滚动resize，代码极少。Chrome 125+支持，2026年纳入Interop 2026。常见错误：不设fallback导致溢出视口；不支持浏览器未做@supports降级；与Popover配合时z-index问题。"
+  },
+  {
+    "role": "frontend",
+    "question": "React 19的use() hook解决了什么问题？它与useEffect数据获取有什么区别？",
+    "category": "React·进阶·一面",
+    "answer": "use()是React 19正式hook，可在渲染中读取Promise或Context。读Promise时未resolve则组件挂起，最近Suspense显示fallback；resolve后渲染。读Context类似useContext但可在条件/循环中调用。与useEffect区别：1)use配合Suspense声明式加载，无需手写loading state；2)不触发额外effect和重渲染；3)Server Components中直接use(fetchData())在服务端获取数据；4)use可在条件语句中调用，打破hook顶层限制。常见错误：不提供Suspense边界；以为use替代useEffect（副作用仍需effect）；不缓存Promise导致每次渲染创建新Promise无限循环。"
+  },
+  {
+    "role": "frontend",
+    "question": "React Server Components（RSC）和传统SSR有什么本质区别？",
+    "category": "React·进阶·二面",
+    "answer": "本质区别：1)输出格式——SSR渲染为HTML字符串；RSC渲染为序列化UI树（RSC Payload），客户端与Client Components合并；2)组件类型——Server Components无状态无effect，可直接访问数据库；Client Components标记use client在两端执行；3)JS体积——RSC不发送组件JS到客户端；4)数据流——RSC支持async/await直接获取数据，与Suspense配合流式渲染。常见错误：将RSC等同SSR——RSC是新组件模型，SSR是其渲染输出方式；认为RSC替代Client Components——两者混合使用；不了解RSC Payload格式。"
+  },
+  {
+    "role": "frontend",
+    "question": "React 19的Server Actions是什么？它与传统API路由有什么区别？",
+    "category": "React·进阶·二面",
+    "answer": "Server Actions是用'use server'标记的异步函数，在服务端执行，可从Client Component直接调用，框架自动生成RPC端点。与传统API区别：1)无需手动定义REST端点，函数即API；2)渐进增强——form action即使JS未加载也能提交；3)与useActionState/useFormStatus/useOptimistic深度集成；4)Next.js中自动支持revalidatePath/redirect；5)类型安全共享TS类型。安全：必须做权限校验，输入必须验证。常见错误：信任客户端传入ID做鉴权（越权）；不了解Action是POST且有大小限制；混淆'use server'文件顶部和函数内用法。"
+  },
+  {
+    "role": "frontend",
+    "question": "React Compiler解决了什么问题？它对开发者的编码方式有什么影响？",
+    "category": "React·进阶·二面",
+    "answer": "React Compiler是React 19构建时编译器，自动memo化组件和hooks，无需手动useMemo/useCallback/React.memo。原理：编译器分析值和依赖，构建时插入缓存逻辑保证引用稳定性。影响：1)不再需要useMemo/useCallback防不必要渲染（但仍可用于语义化昂贵计算）；2)可自由创建对象函数不必担心引用变化；3)减少stale closure问题；4)仍需遵守hooks规则和不可变更新。Next.js 15实验性支持，后续版本默认开启。常见错误：以为有Compiler就能mutate state（不可变原则不变）；认为useMemo完全没用——跳过昂贵计算仍有价值。"
+  },
+  {
+    "role": "frontend",
+    "question": "useTransition和useDeferredValue分别解决什么问题？如何选择？",
+    "category": "React·进阶·三面",
+    "answer": "useTransition将更新标记为非紧急，允许紧急更新（输入）优先，返回[isPending,startTransition]。useDeferredValue延迟一个值更新，先显示旧值，无pending状态。选择：能控制更新时用useTransition（按钮切换tab、搜索提交）；无法控制更新来源（props、第三方库状态）用useDeferredValue；需pending指示用useTransition。两者是并发特性，React 18引入，19中与Server Actions和Suspense集成。常见错误：在transition中更新受控输入（应紧急更新）；不了解transition可被紧急更新中断；误以为useDeferredValue等同debounce。"
+  },
+  {
+    "role": "frontend",
+    "question": "React 19中ref可以作为prop直接传递，这与forwardRef有什么区别？有什么迁移注意事项？",
+    "category": "React·进阶·一面",
+    "answer": "React 19中函数组件可以直接接收ref作为prop，不再需要forwardRef包裹。区别：1)forwardRef是HOC模式，将ref作为第二参数传入；19中ref就是普通prop，可在解构中直接获取；2)ref作为prop可与其他prop一样传递默认值、类型标注；3)类组件仍使用createRef/useRef+forwardRef模式。迁移：移除forwardRef包裹，将ref从第二参数改为props.ref；TypeScript中不再需要RefForwardingComponent类型，直接在props接口中定义ref。useImperativeHandle仍可用于暴露命令式API。常见错误：在React 18及以下直接用ref作prop（不生效）；迁移时忘记移除forwardRef导致类型冲突；不了解ref回调清理函数（React 19新增ref回调返回清理函数）。"
+  },
+  {
+    "role": "frontend",
+    "question": "在项目中如何设计可复用的自定义Hook？请以一个useRequest为例说明。",
+    "category": "JavaScript/TypeScript·困难·三面",
+    "answer": "自定义Hook原则：单一职责、输入输出清晰、无JSX、正确清理副作用、处理loading/error/竞态/取消。useRequest参数为请求函数和配置（manual/defaultParams/refreshDeps/cacheKey/pollingInterval/onSuccess），返回data/loading/error/run/refresh/cancel。内部用useRef存AbortController，每次run前abort前一个；useReducer管状态；refreshDeps变化自动请求。实际项目推荐TanStack Query/SWR（已实现缓存、去重、重试、乐观更新、窗口聚焦刷新）。常见错误：不在cleanup中abort导致竞态和setState on unmounted；不处理参数变化stale data。"
+  },
+  {
+    "role": "frontend",
+    "question": "React应用出现不必要的重渲染，你如何定位和优化？",
+    "category": "项目经验·进阶·二面",
+    "answer": "定位：1)React DevTools Profiler录制，查看渲染组件、原因、耗时；2)Highlight updates可视化渲染范围；3)why-did-you-render检测props引用变化。优化：1)React 19 Compiler自动memo化；2)状态下放——移到实际使用的子组件；3)组合模式——频繁变化部分作children/props传递，稳定部分不重渲染；4)Context拆分——高频值与低频值分不同Context；5)大列表虚拟滚动；6)昂贵计算useMemo。注意：React默认重渲染正常，只优化实际造成性能问题的。常见错误：到处加memo增加内存开销；不了解Compiler已自动处理；Context value传内联对象导致所有消费者渲染。"
+  },
+  {
+    "role": "frontend",
+    "question": "Vue 3.5的Reactive Props Destructure有什么变化？它解决了什么痛点？",
+    "category": "Vue·进阶·一面",
+    "answer": "Vue 3.5中从defineProps解构的变量默认保持响应式（3.4实验性，3.5稳定默认启用）。此前解构props丢失响应式（值拷贝），必须用props.xxx或withDefaults。3.5后可直接const{count=0,msg='hello'}=defineProps<{count?:number;msg?:string}>()，编译器自动转为props.count访问，且可用JS原生默认值替代withDefaults。注意：watch解构prop需用getter：watch(()=>count,cb)，不能直接watch(count,cb)。常见错误：3.4以下解构后响应式丢失；watch不用函数形式导致只执行一次。"
+  },
+  {
+    "role": "frontend",
+    "question": "Vue 3.5的useTemplateRef解决了什么问题？与传统ref方式有什么区别？",
+    "category": "Vue·进阶·二面",
+    "answer": "useTemplateRef('name')是Vue 3.5新增API，返回与模板ref=\"name\"对应的ref。传统方式需在script setup声明const myRef=ref(null)，变量名必须与模板ref属性名匹配。useTemplateRef显式关联字符串键：const inputRef=useTemplateRef('myInput')，模板ref=\"myInput\"。优势：1)在composables中可获取模板ref——传统方式要求ref在setup作用域声明；2)支持动态ref名；3)更显式减少命名不匹配错误。常见错误：不了解useTemplateRef需在setup同步调用；以为它替代所有ref——普通数据仍用ref()。"
+  },
+  {
+    "role": "frontend",
+    "question": "Vue 3.4的defineModel有什么作用？它与传统的v-model封装有什么区别？",
+    "category": "Vue·进阶·二面",
+    "answer": "defineModel是Vue 3.4稳定的编译宏，简化v-model封装。传统方式需声明modelValue prop和emit('update:modelValue')，手动在input事件emit。defineModel返回ref直接读写，编译器自动生成prop和emit：const model=defineModel<string>()，模板<input v-model=\"model\">。支持命名v-model：defineModel<string>('name')。支持修饰符：const[model,modifiers]=defineModel<string,{capitalize?:boolean}>()。3.5+支持默认值和类型。常见错误：不了解返回ref在script中需.value；3.3以下需开启实验性配置；混淆defineModel与defineProps。"
+  },
+  {
+    "role": "frontend",
+    "question": "在Vue 3项目中如何使用Pinia做状态持久化？请说明TypeScript类型安全的做法。",
+    "category": "项目经验·进阶·二面",
+    "answer": "Pinia本身不持久化，用pinia-plugin-persistedstate插件。在store中配置persist：true默认localStorage存整个state；可配置key/storage（sessionStorage）/paths（指定字段）/serializer。TS类型安全：1)state用箭头函数返回类型化对象，Pinia自动推断；2)getters中this有完整类型；3)持久化反序列化建议用zod做schema校验。SSR需注意服务端无localStorage，配置cookie存储或条件执行。常见错误：持久化整个state含敏感信息；反序列化不校验导致类型不安全；SSR直接访问localStorage报错；组件外使用store需传pinia实例。"
+  },
+  {
+    "role": "frontend",
+    "question": "Vue 3的响应式系统原理是什么？3.5版本做了哪些性能优化？",
+    "category": "Vue·进阶·二面",
+    "answer": "Vue 3响应式基于Proxy拦截对象get/set/deleteProperty操作，track时收集当前运行的副作用（effect）到依赖Map（targetMap -> depsMap -> dep Set），trigger时遍历dep执行副作用。ref基于类的get/set访问器。computed惰性求值，有dirty标记，依赖变化时标记dirty，下次访问才重新计算。Vue 3.5优化：1)响应式系统重构，内存使用减少56%；2)大型深层响应式数组的跟踪操作最高快10倍；3)解决了SSR中computed悬挂导致的stale value和内存问题；4)更高效的依赖清理机制。常见错误：以为Proxy可以拦截所有操作（不能拦截对象解构——会丢失响应式，需toRefs）；不了解reactive对数组索引和length的拦截；混淆watch和watchEffect的依赖收集方式。"
+  },
+  {
+    "role": "frontend",
+    "question": "请说明V8引擎的垃圾回收机制，以及它对前端性能的影响。",
+    "category": "浏览器原理·进阶·二面",
+    "answer": "V8分代GC：新生代用Scavenge（Cheney算法），From/To空间复制，存活两次晋升老生代；老生代用Mark-Sweep和Mark-Compact解决碎片。Orinoco支持增量标记和并发标记（后台线程），减少主线程暂停。对性能影响：1)GC暂停阻塞主线程导致卡顿影响INP；2)频繁创建短期对象增加新生代回收；3)内存泄漏（未清理闭包、事件监听、Detached DOM）导致老生代GC频繁；4)WeakMap/WeakSet帮助GC自动回收。常见错误：不了解全局变量不会被回收；缓存不设上限；不会用Memory Profiler。"
+  },
+  {
+    "role": "frontend",
+    "question": "Navigation API相比传统hashchange/popstate有什么优势？",
+    "category": "浏览器原理·进阶·三面",
+    "answer": "Navigation API（window.navigation）是现代路由原生API，Chrome 102+。优势：1)统一拦截所有导航——前进后退、pushState、链接点击，不像popstate只在历史切换时触发；2)navigate事件用intercept({handler})接管导航执行异步逻辑；3)transition对象提供导航过渡状态；4)currentEntry获取当前条目；5)canGoBack/canGoForward查询。与View Transitions结合实现原生SPA过渡。它不替代路由库（React Router/Vue Router仍提供嵌套路由等），但路由库可基于它实现更可靠导航拦截。常见错误：以为可跨源拦截（仅限同源）；不了解entries_change与navigate区别。"
+  },
+  {
+    "role": "frontend",
+    "question": "Speculation Rules API是什么？它如何提升页面导航性能？",
+    "category": "浏览器原理·进阶·一面",
+    "answer": "Speculation Rules通过<script type=\"speculationrules\">JSON配置声明URL可被浏览器预渲染或预取。浏览器空闲时提前加载并后台渲染，用户点击时几乎瞬时呈现。配置prerender/prefetch，source为list或urls，eagerness控制触发：conservative（鼠标悬停/按下）、moderate（悬停200ms）、eager（立即）。相比<link rel=prefetch>只下载资源，Speculation Rules可执行完整预渲染（JS执行+DOM构建），显著提升LCP和INP。需HTTPS，只预取高概率访问页面。常见错误：预渲染所有页面浪费带宽内存；不配置eagerness导致立即预取；不了解跨站限制。"
+  },
+  {
+    "role": "frontend",
+    "question": "WebGPU是什么？它在前端有哪些适用场景？与WebGL有什么区别？",
+    "category": "浏览器原理·进阶·二面",
+    "answer": "WebGPU是现代Web图形和计算API，参考Vulkan/Metal/D3D12，2024年Chrome/Edge/Firefox稳定，Safari 2025支持。与WebGL区别：1)低开销API减少CPU驱动开销，支持多线程命令编码；2)Compute Shader支持GPGPU，WebGL仅图形；3)现代管线状态对象、显式资源管理。场景：3D渲染（Three.js WebGPU后端）、AI推理（Transformers.js在浏览器运行LLM）、图像处理/视频编辑、科学计算。注意学习曲线陡峭；移动端iOS Safari支持仍在推进。常见错误：以为WebGPU是WebGL升级版（全新API不兼容）；不了解Adapter/Device模型。"
+  },
+  {
+    "role": "frontend",
+    "question": "你的页面INP指标不合格（>500ms），请给出完整的排查和优化方案。",
+    "category": "项目经验·进阶·二面",
+    "answer": "INP衡量页面生命周期所有交互的最差响应延迟（p98），含输入延迟+处理时间+呈现延迟。排查：1)PageSpeed Insights/CrUX获取真实数据；2)Performance面板录制定位Long Task；3)区分输入延迟（主线程阻塞）、处理时间（回调重）、呈现延迟（渲染慢）。优化：1)拆分长任务——scheduler.yield()/setTimeout拆>50ms任务；2)减少事件回调中DOM操作和React渲染——防抖、状态下放、React Compiler；3)复杂渲染用startTransition；4)避免强制同步布局；5)content-visibility跳过不可见区域；6)Speculation Rules预渲染；7)第三方脚本延迟或Worker。常见错误：只关注FID；用debounce处理同步阻塞——需拆任务而非延迟。"
+  },
+  {
+    "role": "frontend",
+    "question": "React Server Components如何减少客户端JavaScript体积？在项目中如何最大化这一优势？",
+    "category": "性能优化·进阶·二面",
+    "answer": "RSC在服务端渲染组件，代码和依赖不发送到客户端，只发送序列化渲染结果。例如使用markdown解析库（300KB）的Server Component，该库不包含在客户端bundle。最大化：1)纯展示/数据获取组件默认Server Component；2)Client Component边界下沉——交互叶子组件标记use client，父级保持服务端；3)大体积依赖（图表、Markdown、代码高亮）在Server Component中import；4)Server Component直接访问数据库/API减少客户端请求；5)Server Component可通过children/props组合Client Component。常见错误：根布局加use client使整树客户端化；Server Component中使用useState/useEffect（编译错误）。"
+  },
+  {
+    "role": "frontend",
+    "question": "Progressive Hydration和Islands Architecture分别是什么？它们解决了什么问题？",
+    "category": "性能优化·进阶·三面",
+    "answer": "Progressive Hydration不在页面加载时一次性水合所有组件，而是按需——组件进入视口、用户交互或浏览器空闲时才水合，减少初始JS执行改善INP/TTI，可用requestIdleCallback或IntersectionObserver实现。Islands Architecture页面主要内容是静态HTML（服务端渲染），交互组件是独立孤岛各自单独水合，孤岛间静态内容不发送JS，Astro是典型代表。与RSC关系：RSC也减少客户端JS但React Client Component仍打包；Islands更激进——静态内容完全无JS。Next.js PPR结合了静态外壳+动态流式孤岛。常见错误：将Islands与微前端混淆；不了解跨孤岛通信需全局状态或事件。"
+  },
+  {
+    "role": "frontend",
+    "question": "如何将一个执行耗时500ms的同步计算任务优化到不阻塞UI？",
+    "category": "项目经验·进阶·二面",
+    "answer": "方案：1)任务拆分——大循环拆成小块，每块后scheduler.yield()或setTimeout(0)让出主线程，rAF分批更新UI，适合可中断DOM操作；2)Web Worker——纯计算移到Worker，postMessage通信，适合数据处理/排序/搜索；3)WASM——计算密集型用Rust/C++编译WASM比JS快数倍，可在Worker运行；4)OffscreenCanvas——Canvas渲染移Worker；5)React用useTransition/useDeferredValue标记低优先级更新。Worker不能访问DOM，通信用Transferable Objects零拷贝。常见错误：Worker中操作DOM；postMessage传大对象不用Transferable；拆分粒度过细调度开销大于计算。"
+  },
+  {
+    "role": "frontend",
+    "question": "在大型React应用中如何设计代码分割和懒加载策略？",
+    "category": "项目经验·进阶·三面",
+    "answer": "策略：1)路由级分割——React.lazy+Suspense按路由分割，首屏只加载当前路由；2)组件级分割——大型组件（富文本编辑器、图表、Modal）lazy懒加载；3)第三方库分割——manualChunks分离react/vendor/图表库利用缓存；4)预加载——高概率路由用link rel=prefetch；5)modulepreload关键chunk；6)Tree-shaking。Suspense fallback用骨架屏避免布局跳动；lazy命名chunk便于调试；过度分割导致过多请求需平衡（建议chunk>20KB）。常见错误：所有组件lazy导致chunk过碎；全屏loading导致内容跳动；不配置vendor chunk导致应用代码变更后缓存失效。"
+  },
+  {
+    "role": "frontend",
+    "question": "Vite 6的Environment API是什么？它为框架作者解决了什么问题？",
+    "category": "工程化·进阶·二面",
+    "answer": "Environment API是Vite 6引入的多环境抽象，将dev server从client/ssr二元环境抽象为可配置环境。每个Environment有独立模块图、插件管道和运行时，可对应浏览器/SSR/Workerd。核心：DevEnvironment描述配置；ModuleRunner（vite/module-runner）在目标运行时执行模块，runner.import(url)替代server.ssrLoadModule。优势：框架可编写运行时无关代码；每环境独立HMR；RunnableDevEnvironment同进程传递JS值。主要面向SSR/SSG框架作者。常见错误：混淆Environment API与import.meta.env环境变量；以为这是应用层API。"
+  },
+  {
+    "role": "frontend",
+    "question": "Rspack与Webpack相比有什么优劣势？什么场景下选择Rspack？",
+    "category": "工程化·进阶·一面",
+    "answer": "Rspack是字节开源的Rust打包器，兼容Webpack生态。优势：1)构建快5-10倍（Rust并行+SWC），大型项目冷启动从分钟级降到几十秒；2)内存约400MB vs Webpack 2-4GB；3)高度兼容webpack配置和loader/plugin，迁移成本低于Vite；4)内置TS/JSX/Fast Refresh；5)支持Module Federation、持久化缓存。劣势：部分loader/plugin兼容性不完美；生态较年轻。选择：已有Webpack项目想提速且迁移成本敏感；大型Monorepo；需Webpack生态但构建性能瓶颈。新项目无历史包袱可考虑Vite。常见错误：以为零成本迁移——部分自定义loader需适配；Rspack用SWC而非Babel，Babel插件需找SWC等价。"
+  },
+  {
+    "role": "frontend",
+    "question": "Monorepo方案Turborepo、Nx和pnpm workspace如何选择？",
+    "category": "项目经验·进阶·二面",
+    "answer": "pnpm workspace是底层包管理方案，workspace协议链接本地包，零配置轻量，但不含任务编排。Turborepo专注任务编排和远程缓存，配置简单（turbo.json定义pipeline），增量构建本地+远程缓存，与包管理器解耦，适合中小团队。Nx功能最全——任务编排、缓存、代码生成、依赖图、模块边界约束，适合大型企业级Monorepo。选择：纯包管理+简单脚本用pnpm workspace；需任务缓存但不想引入太多概念用Turborepo；大型多团队需代码生成和架构约束用Nx。可组合pnpm+Turborepo。常见错误：小型项目引入Nx过度工程化；不了解Monorepo隐性成本（配置复杂度、CI时间）；不配置任务缓存。"
+  },
+  {
+    "role": "frontend",
+    "question": "ESLint Flat Config（eslint.config.js）相比旧的.eslintrc有什么变化？",
+    "category": "工程化·进阶·二面",
+    "answer": "ESLint v9默认Flat Config（eslint.config.js导出数组），替代.eslintrc。变化：1)单文件JS配置，原生ESM可import插件；2)全局对象需显式languageOptions.globals；3)规则插件通过import引入，不用字符串plugins和extends继承链；4)ignore用ignores字段替代.eslintignore；5)类型安全配合typescript-eslint typed配置。可用@eslint/migrate-config自动迁移。常见错误：升级v9后旧配置失效；不了解Flat Config中不再有.eslintignore；混淆config数组合并规则（rules浅合并）。"
+  },
+  {
+    "role": "frontend",
+    "question": "如何配置一个严格的Content Security Policy（CSP）？如何在SPA中处理inline script？",
+    "category": "网络与安全·进阶·二面",
+    "answer": "严格CSP：default-src 'self'；script-src 'self'（禁inline/eval）；style-src 'self'或nonce；connect-src 'self' api.example.com；frame-ancestors 'none'；object-src 'none'；upgrade-insecure-requests。SPA处理inline script：1)nonce——服务端每次随机生成，CSP加script-src 'nonce-xxx'，inline script加nonce；2)hash——计算inline script SHA256加入script-src；3)移到外部JS。Report-Only先上报再阻断。常见错误：用unsafe-inline使CSP形同虚设；nonce不每次随机；不了解对第三方脚本需逐一加白名单。"
+  },
+  {
+    "role": "frontend",
+    "question": "CSRF攻击的原理是什么？SameSite Cookie如何防御？还有哪些手段？",
+    "category": "网络与安全·进阶·二面",
+    "answer": "CSRF利用已认证用户身份在恶意网站发起状态变更请求，浏览器自动携带Cookie。防御：1)SameSite Cookie——Lax允许顶级导航GET带Cookie但POST不带，Strict完全禁止跨站携带，2025年浏览器默认Lax；2)CSRF Token——服务端生成随机token嵌入表单/请求头验证，攻击者无法跨站读取；3)验证Origin/Referer；4)双重Cookie比较；5)敏感操作二次验证。SameSite不能完全替代Token——Lax下GET导航仍带Cookie。SPA用Authorization header（不自动携带）比Cookie更安全。常见错误：以为Lax完全防CSRF；Token不绑定会话；SameSite=None时未同时Secure。"
+  },
+  {
+    "role": "frontend",
+    "question": "前端供应链安全有哪些风险？如何在项目中建立防护体系？",
+    "category": "项目经验·进阶·二面",
+    "answer": "风险：恶意npm包（拼写劫持、投毒更新、维护者被黑）、依赖漏洞（CVE）、安装脚本恶意执行（postinstall）、构建产物篡改。防护：1)npm audit/osv-scanner扫描，CI阻断高危；2)npm ci锁定版本，lockfile提交；3)ignore-scripts true禁用postinstall；4)CI/CD token最小权限；5)Socket.dev/Snyk/Dependabot监控；6)pnpm overrides强制修复子依赖；7)SRI给CDN资源加integrity；8)锁定内网registry；9)审查AI代码生成工具引入的包。常见错误：只关注直接依赖忽略传递依赖；不更新lockfile；CI audit警告不阻断。"
+  },
+  {
+    "role": "frontend",
+    "question": "Next.js 15的Partial Prerendering（PPR）是如何工作的？它与ISR有什么区别？",
+    "category": "跨端与框架·进阶·一面",
+    "answer": "PPR在同一页面混合静态外壳和动态流式内容：构建时生成静态HTML外壳，动态部分用Suspense包裹，请求时流式填充。用户瞬间看到外壳，动态内容加载后无缝替换。开启：next.config.ts中experimental.ppr='incremental'，路由段export const experimental_ppr=true。与ISR区别：ISR是整页静态+后台重验证，用户要么看完整静态页要么等重新生成；PPR是组件级静态/动态混合，静态即时可见，动态独立流式不阻塞整体。用cookies()/headers()的组件需Suspense包裹，否则整页变动态。常见错误：不包Suspense导致退化为SSR；以为PPR替代ISR——两者可结合。"
+  },
+  {
+    "role": "frontend",
+    "question": "Next.js 15中cookies()和headers()变为异步，这带来了什么变化？",
+    "category": "跨端与框架·进阶·二面",
+    "answer": "Next.js 15中cookies()/headers()/params/searchParams改为异步返回Promise。背景是PPR模型：读取cookie/header意味组件需要请求数据，是动态边界，await标记该组件为动态，静态外壳不等待，动态边界通过Suspense流式渲染。迁移：const cookieStore=await cookies()；params同样await。Next.js提供codemod自动转换。影响所有使用这些API的服务端组件、工具函数和第三方认证/分析库。常见错误：不await导致.get is not a function；在Client Component中调用cookies()（应Server Component读取后传props）。"
+  },
+  {
+    "role": "frontend",
+    "question": "Tauri 2.0与Electron相比有什么优劣？在什么场景下选择Tauri？",
+    "category": "项目经验·进阶·二面",
+    "answer": "Tauri 2.0用Rust后端+系统WebView，Electron捆绑Node.js+Chromium。Tauri优势：包体积2.5-10MB vs 80-150MB；内存30-40MB vs 100-400MB；冷启动<500ms vs 1-3秒；Tauri 2.0支持iOS/Android；capabilities细粒度IPC权限；Rust内存安全。劣势：系统WebView渲染一致性需测试；Rust学习曲线；生态不如Electron成熟。选Tauri：包体积/内存敏感、安全要求高、桌面+移动统一、有Rust能力。选Electron：重度Node生态、复杂多窗口、需跨平台一致性、JS团队快速交付。常见错误：忽略Linux WebKitGTK兼容性；Tauri中任意暴露IPC不做校验。"
+  },
+  {
+    "role": "frontend",
+    "question": "在前端项目中如何设计BFF（Backend for Frontend）层？它解决了什么问题？",
+    "category": "前端架构与系统设计·进阶·二面",
+    "answer": "BFF是介于前端和后端微服务间的适配层，为特定前端定制数据聚合和格式转换。解决：1)前端需调多个服务拼装数据，BFF聚合一次返回；2)后端通用格式与前端展示不匹配，BFF裁剪转换；3)前端不暴露后端拓扑；4)不同端各有BFF。技术选型：Node.js（Fastify/Nest.js）适合前端全栈；Next.js/Remix的Server Components/Loader天然承担BFF；GraphQL让前端按需查询。原则：BFF只做聚合/适配/编排不含业务逻辑；缓存策略；错误部分降级；类型安全（tRPC/OpenAPI codegen）。常见错误：BFF变成胖逻辑层；不做缓存导致扇出多个服务；与后端边界不清。"
+  },
+  {
+    "role": "frontend",
+    "question": "微前端方案qiankun和wujie（无界）的核心原理有什么区别？",
+    "category": "前端架构与系统设计·进阶·二面",
+    "answer": "qiankun基于single-spa：HTML Entry加载子应用HTML解析JS/CSS；JS沙箱用Proxy隔离window；CSS隔离用动态样式表或shadow DOM。痛点：样式隔离不彻底、沙箱兼容性问题、性能开销。wujie（无界）基于Web Component+iframe：shadow DOM天然CSS隔离；iframe作为JS沙箱天然隔离window，但DOM代理渲染到主文档解决iframe白屏问题；iframe常驻保活能力强；资源预加载、去中心化。优势：隔离彻底、预加载/保活、多应用同时激活、Vite原生支持。劣势：iframe通信开销和内存。常见错误：以为微前端是银弹；不考虑子应用版本冲突和共享依赖；不设计通信规范导致耦合。"
+  },
+  {
+    "role": "frontend",
+    "question": "Vercel AI SDK的useChat和useCompletion分别适用于什么场景？核心API有哪些？",
+    "category": "AI应用前端·进阶·一面",
+    "answer": "useChat管理多轮对话，维护messages数组（role:user/assistant/system/tool），支持工具调用、乐观更新、停止、错误状态，适用于聊天机器人。返回messages/input/handleSubmit/status/stop/reload。useCompletion管理单轮文本补全，返回completion字符串，适用于文本续写/摘要。AI SDK 5统一SSE协议，支持React/Vue/Svelte。配置：api/id（跨组件共享）/maxSteps（Agent循环上限）/onFinish。常见错误：用useChat做单次补全状态过重；不设maxSteps导致工具调用无限循环；后端返回Response.json而非toUIMessageStreamResponse导致不流式。"
+  },
+  {
+    "role": "frontend",
+    "question": "在AI对话应用中如何做Token计数和上下文截断？前端需要参与吗？",
+    "category": "项目经验·进阶·二面",
+    "answer": "Token计数：LLM有上下文窗口限制，用js-tiktoken或gpt-tokenizer在浏览器估算token，显示使用率进度条，接近上限提示。截断策略：1)滑动窗口保留system prompt和最近N轮；2)摘要压缩早期对话；3)重要消息（system、关键tool结果）不截断；4)按token预算分配（system 10%/历史60%/输入30%）。前端计数仅UX提示，最终截断必须在服务端执行；不同模型tokenizer不同需匹配。常见错误：用字符数估算（1 token约0.75英文词或1.5中文字）；截断时不保留system prompt；只在前端截断可被绕过。"
+  },
+  {
+    "role": "frontend",
+    "question": "线上用户反馈页面内存持续上升，你如何排查内存泄漏？",
+    "category": "项目经验·进阶·二面",
+    "answer": "排查：1)Memory面板拍Heap Snapshot基线，操作后再拍，Comparison对比未回收对象；2)Allocation timeline录制查看蓝色竖条（未回收分配）；3)Performance勾选Memory查看JS Heap曲线是否锯齿状还是持续上升；4)常见泄漏源：未移除事件监听、未清理定时器、闭包引用、全局缓存无限增长、Detached DOM节点（JS引用但不在文档中）、Console.log保留大对象、第三方库未destroy、React/Vue组件卸载未取消订阅和AbortController；5)WeakMap/WeakSet替代Map存关联数据。生产监控performance.memory。常见错误：只看一次快照判断泄漏；忽略Detached DOM；不在无插件隐身模式测试。"
+  },
+  {
+    "role": "frontend",
+    "question": "Vitest相比Jest有什么优势？在Vite项目中如何配置组件测试和E2E测试？",
+    "category": "工程化·进阶·二面",
+    "answer": "Vitest优势：1)与Vite共享vite.config.ts，原生ESM/TS/JSX/CSS Module无需Babel；2)基于esbuild/SWC转译，启动和Watch极快；3)兼容Jest API（describe/it/expect/vi）迁移成本低；4)原生组件测试（Testing Library+happy-dom）；5)多线程并行+内置v8覆盖率；6)vi.mock接近Vite模块解析。组件测试测渲染和用户交互不测实现细节。E2E用Playwright（跨浏览器+并行shard+trace）。配置vitest.config.ts的environment/setupFiles/coverage；Playwright独立配置。常见错误：测内部state而非用户可见行为；不mock网络导致测试不稳定；E2E和单元测试职责不清。"
+  },
+  {
+    "role": "frontend",
+    "question": "请设计一个类型安全的Event Emitter，支持事件名与 payload 类型映射、通配符订阅和 once。",
+    "category": "JavaScript/TypeScript·困难·三面",
+    "answer": "核心：interface EventMap定义事件名到payload映射；class TypedEmitter<E>中on<K extends keyof E>(event:K,listener:(payload:E[K])=>void)类型推断；emit类型检查；once用on+off包装；通配符'*'监听所有事件，payload为联合类型需收窄；off解绑；返回unsubscribe函数防泄漏；Map存储。常见错误：通配符payload变unknown；off用匿名函数无法解绑；listener中抛异常导致后续不执行（应try/catch隔离）。"
+  },
+  {
+    "role": "frontend",
+    "question": "请实现一个带并发控制和重试的异步任务调度器。",
+    "category": "JavaScript/TypeScript·困难·三面",
+    "answer": "class TaskScheduler构造接收concurrency和maxRetries，add(task)返回Promise。running计数+pending队列，add时running<concurrency立即执行否则入队，完成后runNext。重试：失败时retryCount<maxRetries则指数退避（base*2^retry+jitter）后重新入队。支持优先级队列、取消（AbortSignal reject AbortError）、超时（Promise.race）、pause/resume、onTaskStart/Success/Error回调。任务必须幂等才能安全重试。常见错误：重试不限次导致雪崩；不jitter导致thundering herd；重试任务结果未返回给最初调用者。"
+  },
+  {
+    "role": "frontend",
+    "question": "如何设计一套兼容SSR、支持主题切换且高性能的CSS架构？",
+    "category": "CSS·困难·三面",
+    "answer": "1)Token系统用CSS自定义属性（--color-primary），:root[data-theme=dark]覆盖，切换改data-theme；2)@layer按reset/base/components/utilities/overrides分层解决特异性竞争；3)SSR内联首屏critical CSS避免FOUC；4)容器查询+逻辑属性（margin-inline-start）做响应式和RTL；5)CSS Modules或vanilla-extract零运行时隔离；6)SSR内联脚本读localStorage在CSS加载前设data-theme防闪烁；7)prefers-color-scheme监听系统主题；8)@supports渐进增强。常见错误：主题切换整页闪烁；CSS变量SSR/客户端不一致导致hydration mismatch；@layer顺序搞反。"
+  },
+  {
+    "role": "frontend",
+    "question": "请设计React 19 Server Components在大型应用中的分层架构，说明Server/Client Component边界划分原则。",
+    "category": "React·困难·三面",
+    "answer": "分层：1)数据层——Server Components直接访问数据库/ORM，async await数据；2)布局层——页面结构/导航/内容为Server Components零客户端JS；3)交互层——需要state/effect/浏览器API的叶子组件use client，下沉到树底；4)Provider层——Context Provider是Client Component放根布局，高频值独立Context。边界原则：默认Server，仅useState/useEffect/浏览器API时加use client；Server可import Server和Client，Client只能import Client（但通过children接收Server输出）。常见错误：根布局use client使整树客户端化；Client中直接import Server（需children传递）。"
+  },
+  {
+    "role": "frontend",
+    "question": "React Server Components的流式渲染和Suspense边界如何协同？请设计一个仪表盘页面的加载策略。",
+    "category": "React·困难·三面",
+    "answer": "Server Component中await数据时React不等待整页，已就绪部分流式发送，Suspense边界发送fallback，数据就绪后通过同一HTTP流替换。仪表盘设计：1)顶层layout为Server Component立即渲染导航；2)独立Suspense包裹<Stats/>（核心指标优先级高）、<Chart/>（大数据可慢）、<RecentActivity/>，各卡片不互相阻塞；3)loading.tsx自动作为fallback；4)PPR确保静态外壳即时发送；5)Client交互部分（筛选器）在骨架旁立即可用；6)Next.js对bot等待完整渲染。常见错误：一个大Suspense包整页；fallback与内容不一致导致CLS；不了解动态流不可CDN整页缓存。"
+  },
+  {
+    "role": "frontend",
+    "question": "请对比Zustand、Jotai和Signals三种现代状态管理方案的设计哲学，并给出技术选型建议。",
+    "category": "React·困难·三面",
+    "answer": "Zustand：单一store，发布订阅，API极简create返回hook，组件外可用，适合全局UI/权限，中间件persist/devtools/immer。Jotai：原子化模型，atom可组合派生，自动按需订阅只重渲染依赖组件，解决Context全量渲染，适合复杂依赖图/表单。Signals（@preact/signals-core）：细粒度响应式原语，signal.value变化精确更新DOM/副作用，可绕过React渲染管线，适合高频更新（动画/实时数据）。Server State用TanStack Query/SWR而非这些。常见错误：Zustand存服务端数据；组件订阅整个store而非selector；不了解Signals与React并发模式兼容性。"
+  },
+  {
+    "role": "frontend",
+    "question": "请设计Vue 3.5+在超大型表单（100+字段、动态校验、跨字段联动）场景下的架构方案。",
+    "category": "Vue·困难·三面",
+    "answer": "1)Pinia store按模块拆分（personalInfo/education），避免单一巨型reactive；2)JSON Schema驱动字段配置（类型/校验/显隐/联动）；3)VeeValidate+Zod schema，校验触发blur/change/submit，异步校验用AbortController取消；4)watchEffect/computed自动追踪跨字段联动；5)100+字段用虚拟滚动只渲染可见字段，select异步搜索+防抖+虚拟列表；3.5响应式优化天然受益；6)草稿debounce自动保存；7)步骤表单分步验证；8)defineModel+Zod类型安全。常见错误：所有字段一个reactive；不用虚拟滚动；校验无防抖；不处理异步竞态。"
+  },
+  {
+    "role": "frontend",
+    "question": "请阐述V8隐藏类（Hidden Class）和内联缓存（Inline Cache）的工作原理，并说明如何写出高性能JavaScript。",
+    "category": "浏览器原理·困难·三面",
+    "answer": "V8为对象创建隐藏类记录属性到内存偏移映射，增删属性切换隐藏类，相同属性顺序对象共享。内联缓存：属性访问时缓存隐藏类和偏移量，命中（monomorphic）直接用缓存；多态（2-4种）逐个比较；超多态（>4种）退化为哈希查找性能骤降。高性能写法：1)构造函数一次性初始化所有属性保持顺序一致（用class）；2)避免delete（用undefined）；3)避免多态函数接收不同形状对象；4)数组用同构类型避免holes；5)热路径避免try-catch；6)大数组用TypedArray。用性能剖析定位瓶颈，不过早优化。常见错误：动态加属性导致隐藏类频繁变化；混用数组类型；不了解megamorphic性能悬崖。"
+  },
+  {
+    "role": "frontend",
+    "question": "请设计一套完整的前端性能监控系统，覆盖Web Vitals采集、上报和分析。",
+    "category": "前端架构与系统设计·困难·三面",
+    "answer": "三层：1)采集——web-vitals采LCP/INP/CLS，INP用PerformanceEventTiming取p98；PerformanceObserver监听longtask/layout-shift/resource timing；错误监听onerror/unhandledrejection；白屏检测；sendBeacon上报，采样率1-10%（错误100%）。2)上报——requestIdleCallback批量合并，sendBeacon在unload发送，数据压缩。3)分析——ClickHouse存时序，按页面/地域/设备p75/p98告警，Source Map反解。加分：Long Animation Frames定位INP根因；RSC流式TTFB分阶段。常见错误：上报影响性能；不用sendBeacon丢数据；SPA路由切换CLS不重置。"
+  },
+  {
+    "role": "frontend",
+    "question": "请设计Vite 6 + Rspack混合的Monorepo工程化方案，说明构建策略和CI/CD流程。",
+    "category": "工程化·困难·三面",
+    "answer": "1)pnpm workspace管理apps/packages；2)dev用Vite 6（ESM HMR），生产评估Rspack（速度+兼容性），组件库用Rslib输出ESM+CJS+d.ts；3)Vite 6 Environment API配置SSR多环境；4)Turborepo定义pipeline做远程缓存；5)pnpm catalog统一版本，overrides修复漏洞；6)ESLint Flat Config+Oxlint检查；7)CI：pnpm fetch离线镜像、Vitest多线程、Turborepo缓存+Rspack、Playwright并行shard、Docker+CDN；8)缓存node_modules/Rspack持久化。常见错误：应用间隐式循环依赖；不配任务缓存CI全量构建；Vite/Rspack配置不一致。"
+  },
+  {
+    "role": "frontend",
+    "question": "Trusted Types是什么？如何在项目中落地以彻底消除DOM XSS？",
+    "category": "网络与安全·困难·三面",
+    "answer": "Trusted Types要求危险DOM API（innerHTML/eval等）只接收TrustedHTML/TrustedScript对象，从根源消除DOM XSS。落地：1)CSP加require-trusted-types-for script；2)trustedTypes.createPolicy创建消毒policy，所有innerHTML经DOMPurify.sanitize；3)CSP trusted-types白名单policy名；4)React/Vue内部用textContent，v-html需配policy；5)DOMPurify 3.x原生支持；6)Report-Only先上报再强制。常见错误：policy中直接return input未消毒；不处理第三方脚本违规；以为替代其他CSP指令（互补关系）。"
+  },
+  {
+    "role": "frontend",
+    "question": "请设计Tauri 2.0桌面应用的IPC安全架构，如何防止前端漏洞被利用攻击本地系统？",
+    "category": "前端架构与系统设计·困难·三面",
+    "answer": "1)capabilities/permission显式声明每个window可调用命令白名单，默认关闭按需开启；2)每个#[tauri::command]在Rust侧做参数校验、路径规范化（canonicalize防../穿越）、权限二次检查，不信任前端参数；3)前端通过invoke经IPC桥接，只暴露白名单命令；4)Tauri配置强制CSP禁unsafe-eval/inline防XSS后执行；5)远程URL用独立webview移除所有capability；6)生产禁devtools；7)updater验证签名；8)cargo audit+npm audit。常见错误：capability用通配符；Rust命令直接执行前端传入命令（命令注入）；不限制文件路径导致任意读写；CSP过宽松。"
+  },
+  {
+    "role": "frontend",
+    "question": "请设计一个支持多人协作编辑的前端架构（类似Google Docs），说明冲突处理和同步策略。",
+    "category": "前端架构与系统设计·困难·三面",
+    "answer": "1)数据模型用CRDT（Yjs/Automerge）而非OT，无需中央服务器协调自动合并并发编辑，离线重连自动同步，数学保证最终一致；2)Yjs y-websocket/WebRTC增量同步；3)React/Vue绑定将Yjs XmlText/Map映射到框架状态细粒度更新，大文档虚拟滚动；4)光标/选区用Yjs Awareness协议广播；5)CRDT每个字符有唯一逻辑时钟，并发插入按ID排序，删除用tombstone；6)WebSocket服务器做中继和定期快照持久化；7)IndexedDB离线副本。常见错误：用OT需中心化复杂转换；自己实现CRDT边界case极多；不限制文档大小；不清理tombstone。"
+  },
+  {
+    "role": "frontend",
+    "question": "请为一个AI Coding Agent产品设计前端架构，支持多轮对话、工具调用可视化、代码diff预览和流式执行。",
+    "category": "AI应用前端·困难·三面",
+    "answer": "1)useChat（AI SDK 5）管理messages/toolInvocations，maxSteps防无限循环；2)message含role/parts（text/tool-call/tool-result），toolInvocations含toolName/args/state；3)工具调用卡片展示参数JSON高亮、执行状态、结果；4)代码diff用Monaco/diff2html渲染，支持接受/拒绝；5)SSE逐token渲染Markdown（react-markdown+Shiki），useOptimistic乐观更新；6)stdout/stderr流式追加xterm.js；7)AbortController停止；8)IndexedDB持久化；9)长对话虚拟化。常见错误：后端非SSE流；不处理toolInvocations部分更新；AI命令不确认直接执行；长对话不虚拟化。"
+  },
+  {
+    "role": "frontend",
+    "question": "在AI对话应用中如何安全渲染LLM输出的Markdown和HTML，防止XSS和提示注入？",
+    "category": "AI应用前端·困难·二面",
+    "answer": "1)react-markdown默认不渲染HTML，rehype-sanitize白名单过滤；2)代码高亮用Shiki服务端/构建时，不用dangerouslySetInnerHTML插未消毒HTML；3)外链加rel=noopener，检查href协议禁javascript:；4)必须渲染HTML时DOMPurify.sanitize+Trusted Types；5)提示注入防护——不自动执行AI输出命令/链接，系统提示UI明确标记；6)AI输出用sandboxed iframe或Shadow DOM隔离；7)严格CSP。常见错误：dangerouslySetInnerHTML直接插AI HTML；DOMPurify配置过宽允许iframe；不了解Markdown链接可构造javascript:alert；对提示注入无感知。"
+  },
+  {
+    "role": "frontend",
+    "question": "请设计一个企业级前端组件库的架构，覆盖设计系统、主题、按需加载、文档和测试。",
+    "category": "前端架构与系统设计·困难·三面",
+    "answer": "1)pnpm workspace+Changesets版本管理，分components/hooks/icons/tokens/cli；2)Style Dictionary定义Token编译为CSS变量+TS常量，data-theme切换多主题；3)TS+React 19/Vue 3.5，ref作prop，SSR兼容，Compound Component模式；4)vanilla-extract零运行时类型安全CSS；5)Tree-shaking友好（sideEffects:false），exports map支持ESM/CJS；6)Rslib（Rspack）输出；7)Storybook 8文档，VitePress文档站；8)Vitest+Testing Library，Playwright视觉回归。常见错误：peer依赖冲突；样式不隔离；不做SSR测试；图标全量引入。"
+  },
+  {
+    "role": "frontend",
+    "question": "一个日活百万的SPA页面在低端Android WebView上白屏率达5%，请设计完整的排查和治理方案。",
+    "category": "项目经验·困难·三面",
+    "answer": "排查：1)白屏检测——根节点3秒后无可见元素则上报设备/WebView版本/错误栈/Source Map；2)分类：JS语法不兼容（60%，旧WebView不支持可选链/私有字段）、资源加载失败（20%，chunk 404）、OOM（10%）、WebView ROM Bug（10%）。治理：1)browserslist覆盖目标版本，build.target=es2015，@vitejs/plugin-legacy注入polyfill；2)保留旧chunk不立即删除，chunk加载失败重试+回退；3)ErrorBoundary/errorCaptured显示降级UI；4)图片懒加载压缩、虚拟滚动、销毁地图视频、内存监控；5)内联首屏骨架；6)灰度10%监控；7)第三方SDK按需加载+iframe隔离。常见错误：只测iOS高端机；部署删旧资源；无白屏监控；错误边界不捕获异步错误。"
+  },
+  {
+    "role": "frontend",
+    "question": "请从前端架构师视角，评估将一个大型Redux+Webpack+React 17项目迁移到React 19+RSC+Vite 6的技术方案。",
+    "category": "前端架构与系统设计·困难·三面",
+    "answer": "分阶段迁移非重写：1)先升React 18（Strict Mode发现废弃API）再React 19最后RSC；2)Redux中Server State迁TanStack Query（减少40-60%代码），Client State迁Zustand或保留RTK；3)类组件迁函数组件，forwardRef改ref prop，React Compiler稳定后精简memo；4)Webpack→Vite 6：重写vite.config，CJS依赖用optimizeDeps，生产可先保Webpack再切Rspack；5)RSC评估——内容型页面收益大，强交互后台可不上，Next.js 15最成熟；6)每阶段独立可发布监控。风险：RSC心智转变大；第三方库不支持需包裹。常见错误：一次性大重写；Redux全量删除而非渐进。"
+  },
+  {
+    "role": "frontend",
+    "question": "请设计一个AI Agent前端的状态管理方案，处理流式消息、工具调用循环、乐观更新和撤销/重做。",
+    "category": "AI应用前端·困难·三面",
+    "answer": "1)Zustand存messages（id/role/parts/status），useChat内部状态+Zustand镜像；2)SSE分类：text-delta追加（ref存buffer+rAF批量flush）、tool-call-start/result更新、error/finish；3)Agent多步工具调用用maxSteps限制，UI显示步骤时间线；4)乐观更新——用户消息立即push+assistant占位，失败标记retry，工具修改先乐观UI失败回滚；5)撤销/重作用zundo或CRDT；6)IndexedDB持久化；7)react-window虚拟化。常见错误：每delta触发整树重渲染；不处理工具调用中断；乐观更新不回滚；撤销栈内存无限增长。"
+  }
+]

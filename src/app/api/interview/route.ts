@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getDeepSeekModel } from "@/lib/ai";
 import { buildInterviewPrompt } from "@/lib/prompts";
 import { interviewTurnSchema } from "@/lib/schemas";
+import { ROLE_KEYS } from "@/lib/types";
 import {
   assertSafeModelBaseUrl,
   enforceJsonRequest,
@@ -31,7 +32,7 @@ const modelConfigSchema = z
   .optional();
 
 const requestSchema = z.object({
-  role: z.enum(["ai_pm", "pm", "agent_dev", "llm_dev"]),
+  role: z.enum(ROLE_KEYS),
   modelConfig: modelConfigSchema,
   questions: z.array(questionSchema).min(1).max(10),
   currentIndex: z.number().int().min(0),

@@ -24,11 +24,47 @@ const TECH_DIMENSIONS: DimensionDefinition[] = [
   { key: "adaptability", label: "应变能力", weight: 0.15 },
 ];
 
+const FRONTEND_DIMENSIONS: DimensionDefinition[] = [
+  { key: "frontendFundamentals", label: "前端基础", weight: 0.25 },
+  { key: "frontendArchitecture", label: "架构设计", weight: 0.2 },
+  { key: "engineering", label: "工程实践", weight: 0.2 },
+  { key: "performanceQuality", label: "性能与质量", weight: 0.2 },
+  { key: "communication", label: "表达沟通", weight: 0.15 },
+];
+
+const JAVA_BACKEND_DIMENSIONS: DimensionDefinition[] = [
+  { key: "javaFundamentals", label: "Java基础", weight: 0.25 },
+  { key: "systemDesign", label: "系统设计", weight: 0.2 },
+  { key: "dataMiddleware", label: "数据与中间件", weight: 0.2 },
+  { key: "engineering", label: "工程与稳定性", weight: 0.2 },
+  { key: "communication", label: "表达沟通", weight: 0.15 },
+];
+
+const DATA_ANALYST_DIMENSIONS: DimensionDefinition[] = [
+  { key: "sqlDataProcessing", label: "SQL与数据处理", weight: 0.25 },
+  { key: "statisticsExperiment", label: "统计与实验", weight: 0.2 },
+  { key: "businessInsight", label: "业务洞察", weight: 0.25 },
+  { key: "visualization", label: "可视化表达", weight: 0.15 },
+  { key: "communication", label: "表达沟通", weight: 0.15 },
+];
+
+const OPERATIONS_DIMENSIONS: DimensionDefinition[] = [
+  { key: "growthStrategy", label: "增长策略", weight: 0.25 },
+  { key: "userLifecycle", label: "用户运营", weight: 0.2 },
+  { key: "contentCampaign", label: "内容与活动", weight: 0.2 },
+  { key: "dataDecision", label: "数据决策", weight: 0.2 },
+  { key: "communication", label: "表达沟通", weight: 0.15 },
+];
+
 export const DIMENSION_DEFS_BY_ROLE: Record<RoleKey, DimensionDefinition[]> = {
   ai_pm: PM_DIMENSIONS,
   pm: PM_DIMENSIONS,
   agent_dev: TECH_DIMENSIONS,
   llm_dev: TECH_DIMENSIONS,
+  frontend: FRONTEND_DIMENSIONS,
+  java_backend: JAVA_BACKEND_DIMENSIONS,
+  data_analyst: DATA_ANALYST_DIMENSIONS,
+  operations: OPERATIONS_DIMENSIONS,
 };
 
 export function getDimensionDefs(role: RoleKey): DimensionDefinition[] {

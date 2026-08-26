@@ -4,7 +4,7 @@ import { getDeepSeekModel } from "@/lib/ai";
 import { buildReportPrompt } from "@/lib/prompts";
 import { reportSchema } from "@/lib/schemas";
 import { calculateTotalScore, getDimensionDefs } from "@/lib/score";
-import type { PerQuestionReview } from "@/lib/types";
+import { ROLE_KEYS, type PerQuestionReview } from "@/lib/types";
 import {
   assertSafeModelBaseUrl,
   enforceJsonRequest,
@@ -33,7 +33,7 @@ const modelConfigSchema = z
   .optional();
 
 const requestSchema = z.object({
-  role: z.enum(["ai_pm", "pm", "agent_dev", "llm_dev"]),
+  role: z.enum(ROLE_KEYS),
   modelConfig: modelConfigSchema,
   questions: z.array(questionSchema).min(1).max(10),
   conversation: z.array(

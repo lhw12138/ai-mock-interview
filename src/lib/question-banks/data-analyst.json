@@ -1,0 +1,602 @@
+[
+  {
+    "role": "data_analyst",
+    "question": "请解释SQL中WHERE和HAVING的区别，并各举一个使用场景。",
+    "category": "SQL·基础·一面",
+    "answer": "WHERE在分组聚合前过滤行，不能用聚合函数；HAVING在GROUP BY之后过滤分组，可用聚合函数。执行顺序为FROM→WHERE→GROUP BY→HAVING→SELECT→ORDER BY。WHERE用于筛选订单金额大于100的记录，HAVING用于筛选下单次数超过5次的客户。WHERE能利用索引提前过滤减少聚合计算量，应优先使用。常见错误：在WHERE中使用SUM/COUNT导致报错；混淆执行时机以为HAVING可替代WHERE做行级过滤。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "INNER JOIN、LEFT JOIN、RIGHT JOIN和FULL OUTER JOIN有什么区别？",
+    "category": "SQL·基础·一面",
+    "answer": "INNER JOIN只返回两表匹配行；LEFT JOIN返回左表全部行，右表无匹配填NULL；RIGHT JOIN反之；FULL OUTER JOIN返回两表所有行。MySQL不支持FULL OUTER JOIN，可用LEFT JOIN UNION RIGHT JOIN模拟。关键陷阱：右表有重复匹配键时LEFT JOIN会产生行膨胀，导致聚合结果异常。常见错误：认为LEFT JOIN一定比INNER JOIN快；忽略JOIN后行数变化。加分项：提到CROSS JOIN笛卡尔积风险和NATURAL JOIN隐式匹配问题。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "UNION和UNION ALL的区别是什么？什么场景下应该用UNION ALL？",
+    "category": "SQL·基础·一面",
+    "answer": "UNION对合并结果去重，UNION ALL直接合并并保留重复行。UNION为去重通常需要排序或哈希等额外计算，但SQL结果顺序只有在最终使用ORDER BY时才有保证。UNION ALL通常性能更好、内存消耗更少。当确定结果集无重复或业务需要保留重复时应优先使用UNION ALL，如合并互不重叠的日期分区数据。常见错误：无必要地使用UNION造成额外去重开销；误以为UNION会保证输出有序；在子查询中使用不能影响最终结果顺序的ORDER BY。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "什么是子查询？什么是相关子查询？两者性能有何差异？",
+    "category": "SQL·基础·一面",
+    "answer": "子查询是嵌套在另一查询中的SELECT。非相关子查询不依赖外层行，优化器通常可单独计算或物化；相关子查询引用外层值，逻辑上会随外层行求值，但现代优化器可能将其改写为半连接等执行计划，不能机械认定一定执行N次或固定为O(N*M)。EXISTS适合判断是否存在匹配，JOIN改写时要注意重复行语义。IN子查询包含NULL时会涉及SQL三值逻辑：未匹配且集合含NULL的比较结果为UNKNOWN，并非所有场景都简单地“返回空结果”。应结合执行计划和数据分布判断性能。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "什么是窗口函数？它和GROUP BY聚合有什么本质区别？",
+    "category": "SQL·基础·一面",
+    "answer": "窗口函数基于一组与当前行相关的行计算，每行保留独立行并附加结果，不折叠行数，语法为函数() OVER(PARTITION BY 列 ORDER BY 列)。GROUP BY将行折叠为每组一行，丢失明细。如ROW_NUMBER() OVER(PARTITION BY dept ORDER BY salary DESC)可为每部门员工排名且保留每人一行。MySQL 8.0开始支持。常见错误：在WHERE中使用窗口函数（需用子查询/CTE包裹）；混淆PARTITION BY与窗口范围；不理解ORDER BY影响累计计算（如SUM OVER）的范围。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "请写出ROW_NUMBER()、RANK()和DENSE_RANK()的区别。",
+    "category": "SQL·基础·一面",
+    "answer": "ROW_NUMBER()强制唯一排名，同值也递增（1,2,3）；RANK()同值排名相同，后续跳跃（1,1,3）；DENSE_RANK()同值排名相同，后续不跳跃（1,1,2）。取每部门薪资最高一人用ROW_NUMBER()，取前3名允许并列用DENSE_RANK()。语法：ROW_NUMBER() OVER(PARTITION BY dept_id ORDER BY salary DESC)。常见错误：ORDER BY列有重复值时ROW_NUMBER结果不确定，应增加唯一列做tiebreaker；在WHERE中直接引用窗口函数别名报错。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "什么是数据库索引？它的优缺点分别是什么？",
+    "category": "SQL·基础·一面",
+    "answer": "索引是对一列或多列值预排序的数据结构（通常B+树），加速检索。优点：提升WHERE过滤、JOIN连接、ORDER BY排序性能；唯一索引保证唯一性。缺点：占用额外存储；写入时需维护索引降低INSERT/UPDATE/DELETE性能；过多索引增加优化器选择时间。高选择性列（如user_id）建索引效果好，低基数列（如gender）不适合。联合索引遵循最左前缀原则。常见错误：低基数列建索引；索引列上用函数导致失效（WHERE YEAR(create_time)=2024）；忽视覆盖索引避免回表。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "pandas中loc和iloc的区别是什么？请举例说明。",
+    "category": "Python·基础·一面",
+    "answer": "loc基于标签（行/列名）索引，iloc基于整数位置索引。loc包含右端点（闭区间），iloc不包含右端点。如df.loc[0:3]返回标签0到3（含3），df.iloc[0:3]返回位置0、1、2三行。loc支持布尔条件：df.loc[df['age']>30, ['name','salary']]。pandas 2.x推荐用loc赋值避免SettingWithCopyWarning。常见错误：行索引非默认整数时用df[0:3]产生混淆；链式赋值df[df.x>0]['y']=1不可预期，应用loc。加分项：pandas 2.0 Copy-on-Write使链式赋值更可预测。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "pandas中如何处理缺失值？dropna和fillna有哪些常用参数？",
+    "category": "Python·基础·一面",
+    "answer": "缺失值处理三步：识别isna、删除dropna、填充fillna。dropna参数：how='any'/'all'、thresh=N（保留至少N个非空值）、subset指定列。fillna参数：value填充值（标量/字典）、method='ffill'/'bfill'、limit最大填充数。pandas 2.x可用df.fillna({'col1':0,'col2':'unknown'})按列填充。常见错误：用ffill跨组填充导致数据泄露（应先groupby再ffill）；忽略NaN/None/NaT类型差异；对时间序列用均值填充破坏趋势。加分项：interpolate()插值填充。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "NumPy向量化操作为什么比Python循环快？请解释底层原理。",
+    "category": "Python·基础·一面",
+    "answer": "三大原因：1）内存连续：NumPy数组同类型数据连续存储，CPU缓存命中率高，Python列表存对象指针需间接寻址；2）类型固定：无需每次循环做类型检查和分发；3）C底层+SIMD：向量化操作由编译型语言执行，利用SIMD指令并行。如np.dot比手写sum(x*y for...)快10-100倍。常见错误：以为np.vectorize装饰器能加速（实际仍是Python循环，只是语法糖）；在NumPy中混用Python标量导致隐式转换开销。加分项：广播机制和与PyArrow零拷贝交互。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "pandas中groupby后如何同时对不同列应用不同聚合？",
+    "category": "Python·基础·一面",
+    "answer": "用agg方法命名聚合：df.groupby('dept').agg(avg_sal=('salary','mean'), cnt=('id','count'), max_age=('age','max'))。pandas 2.x推荐Named Aggregation语法。也可传字典.agg({'salary':['mean','sum'],'age':'max'})，结果为MultiIndex列。transform返回等长结果，用于组内归一化：df['pct']=df.groupby('dept')['salary'].transform(lambda x:x/x.sum())。常见错误：混淆agg和transform返回形状；groupby后用inplace=True（不支持）；未注意groupby默认排除NaN键。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "pandas中merge和join的区别是什么？如何处理列名冲突？",
+    "category": "Python·基础·一面",
+    "answer": "merge是主力合并函数，支持left_on/right_on指定连接列和how参数，功能完整。join默认基于索引，是merge的便捷封装。推荐统一用merge。列名冲突用suffixes=('_left','_right')参数。连接类型inner/left/right/outer对应SQL JOIN。常见错误：未指定连接列导致笛卡尔积；合并后未校验行数变化（一对多导致行膨胀）；忽略merge默认inner join可能丢数据。加分项：pandas 2.0 PyArrow后端字符串列merge性能提升，Polars join默认并行化。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "请解释均值、中位数、众数的区别及选择场景。",
+    "category": "统计学·基础·一面",
+    "answer": "均值是算术平均，利用全部信息但受极端值影响大；中位数是排序后中间值，对极端值鲁棒但不反映分布全貌；众数是最高频值，适用于分类数据。正态分布用均值（身高、成绩）；有偏/有异常值用中位数（收入、房价）；分类数据用众数（最常购买商品）。业务中报告用户消费时中位数更代表典型用户。常见错误：严重右偏收入只报均值；对多峰分布仅用一个中心趋势指标。加分项：截尾均值和偏度量化。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "什么是标准差和方差？在业务分析中有什么实际用途？",
+    "category": "统计学·基础·一面",
+    "answer": "方差是各数据点与均值差的平方的平均，标准差是方差平方根，与原数据同量纲。用途：质量控制（6σ管理）、风险评估（收益率标准差衡量波动率）、AB测试（标准差影响样本量计算）、异常检测（±3σ外为异常）。总体标准差除以N，样本标准差除以N-1（贝塞尔修正）。常见错误：混淆总体/样本标准差公式；比较不同量纲离散程度时直接用标准差而非变异系数CV=σ/μ。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "请解释Pearson相关系数的含义、取值范围及注意事项。",
+    "category": "统计学·基础·一面",
+    "answer": "Pearson r衡量两连续变量线性关系强度和方向，取值[-1,1]，1完全正相关，-1完全负相关，0无线性相关。r=Cov(X,Y)/(σX·σY)。注意：r只捕捉线性关系（Y=X²可能r≈0但关系很强）；相关不等于因果（冰淇淋和溺水因共同因素气温）；异常值严重扭曲r；样本小时r可能偶然偏大需显著性检验。常见错误：r=0解读为无关系（可能存在非线性）；用Pearson分析有序分类（应用Spearman）；r=0.1显著但效应量极小。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "什么是大数定律和中心极限定理？在AB测试中有什么应用？",
+    "category": "统计学·基础·一面",
+    "answer": "大数定律：样本量越大，样本均值越接近期望值，解释AB测试需足够样本量。中心极限定理：无论总体分布如何，样本量足够大（n≥30）时样本均值趋于正态分布，是假设检验和置信区间的理论基础。AB测试中样本均值标准误SE=σ/√n，据此计算置信区间和P值。常见错误：认为CLT要求原始数据正态（实际是样本均值趋于正态）；样本量很小时用Z检验（应用精确检验）；混淆标准误与标准差。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "AB测试中原假设和备择假设是什么？P值的含义是什么？",
+    "category": "AB测试·基础·一面",
+    "answer": "原假设H0通常为两组无差异（对照组转化率=实验组），备择假设H1为有差异。P值是在H0成立前提下观察到当前或更极端结果的概率，不是H0为真的概率。P<0.05意味着若无差异观察到此结果概率不到5%，故拒绝H0。P值衡量证据强度不衡量效果大小，大样本微小差异也可能显著。决策应同时看P值、置信区间和效应量。常见错误：P=0.06解读为无效果（可能样本不足）；P-hacking；多重比较未校正。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "AB测试中第一类错误和第二类错误分别是什么？有什么关系？",
+    "category": "AB测试·基础·一面",
+    "answer": "第一类错误α（假阳性）：实际无效果却判断为有，概率由显著性水平控制（通常0.05）。第二类错误β（假阴性）：实际有效果未检测出，1-β为统计功效（通常要求80%）。样本量固定时两者此消彼长，降低α会增大β，同时降低只能增加样本量。α过高上线无效功能浪费资源；β过高错过有效优化。常见错误：只看P值忽略Power，功效不足时得出无显著提升结论；实验前不计算样本量。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "什么是事实表和维度表？在维度建模中各自作用是什么？",
+    "category": "数据仓库·基础·一面",
+    "answer": "事实表存储业务过程度量事件，含外键关联维度表和数值度量（金额、数量），特点是行多列少。维度表存储业务上下文描述（时间、地点、产品、用户），特点是行少列多（宽表），含层次结构和描述属性。Kimball建模中事实表位于星型中心，维度表围绕展开。事实表类型：事务事实表、周期快照、累积快照。常见错误：将描述性属性放入事实表导致冗余更新困难；维度未做SCD处理导致历史分析失真。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "星型模型和雪花模型有什么区别？各自优缺点？",
+    "category": "数据仓库·基础·一面",
+    "answer": "星型模型：事实表直接连接维度表，维度表不规范化有冗余但JOIN少查询快。雪花模型：维度表进一步规范化拆分子维度表，减少冗余但增加JOIN层数。星型模型查询性能好、BI工具友好，是Kimball推荐主流方式；雪花模型存储省、更新规范但查询复杂。ClickHouse/Doris等MPP引擎中大宽表通常比多表JOIN性能更好。常见错误：在分析型数仓过度规范化追求3NF牺牲查询性能；雪花模型JOIN过多导致优化器选错计划。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "什么是ODS、DWD、DWS和ADS？数仓分层的作用是什么？",
+    "category": "数据仓库·基础·一面",
+    "answer": "ODS贴源层原样同步业务数据；DWD明细层清洗规范化后的事实明细；DWS汇总层按主题域轻度聚合宽表；ADS应用层面向报表的高度聚合结果。分层作用：解耦（业务变更只影响ODS→DWD）、复用（DWS被多ADS共享避免重复计算）、血缘清晰可逐层追溯、每层可加数据质量校验。常见错误：ADS直接从ODS取数绕过中间层；DWD过度聚合丢失明细；分层过多导致ETL链路冗长。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "什么是OLAP和OLTP？在数据模型和查询特征上有何区别？",
+    "category": "BI·基础·一面",
+    "answer": "OLTP面向日常业务操作（订单创建、支付），高并发短事务、小数据量读写、严格ACID、采用3NF规范化模型。OLAP面向分析决策（销售月报、用户分群），低并发复杂查询、扫描大量数据、秒级到分钟级响应、采用星型/雪花反规范化模型。OLTP用MySQL/PostgreSQL，OLAP用ClickHouse/Doris/StarRocks。常见错误：在MySQL上直接做大规模分析拖慢线上业务；将OLAP用于高频单行更新。加分项：HTAP数据库和Lakehouse模糊两者边界。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "ETL和ELT分别是什么？为什么ELT在现代数据栈中越来越流行？",
+    "category": "数据管道·基础·一面",
+    "answer": "ETL先在外部引擎转换再加载到目标库；ELT先加载原始数据到数仓/湖，再利用仓库计算能力做SQL转换。ELT流行原因：云数仓计算存储弹性扩展转换能力强；原始数据先落地可回溯重算；dbt等工具用SQL做转换支持版本控制和测试；减少对专用ETL服务器依赖。Airbyte/Fivetran做EL，dbt做T是现代数据栈组合。常见错误：将ELT理解为不做转换直接给分析师（仍需建模清洗）；数据量极小时过度设计ELT管道。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "什么是北极星指标？它应具备哪些特征？请举例。",
+    "category": "指标体系·基础·一面",
+    "answer": "北极星指标是公司当前阶段最核心的唯一关键指标。特征：反映产品为客户交付的核心价值；可量化可行动；与长期商业成功正相关；不是虚荣指标；团队可影响。举例：Airbnb为预订天数，Spotify为总收听时长，电商可为复购用户数。常见错误：将收入直接作北极星（可能损害体验）；设多个北极星导致资源分散；指标不随产品阶段调整（新产品应关注激活留存而非收入）。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "什么是DAU、WAU、MAU？DAU/MAU比值有什么分析意义？",
+    "category": "指标体系·基础·一面",
+    "answer": "DAU日活、WAU周活、MAU月活是衡量用户规模和粘性的基础指标。\"活跃\"定义因产品而异，必须明确口径。DAU/MAU（粘性比率）反映月内访问频率：接近1说明几乎每天使用（社交/工具），0.1-0.2说明偶尔使用（旅游/租房）。WAU不等于7天DAU之和（需去重），MAU同理。常见错误：直接用DAU之和当MAU；不定义活跃标准就汇报数字；忽视新老用户结构变化。加分项：Cohort留存分析比单点DAU/MAU更能反映健康度。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "什么是数据质量？通常从哪些维度评估？",
+    "category": "数据治理·基础·一面",
+    "answer": "数据质量核心维度：完整性（字段/记录是否缺失）、准确性（是否反映真实，如年龄为负）、一致性（跨表/跨系统数据是否一致）、及时性（是否按时产出）、唯一性（是否有重复）、有效性（是否符合格式规则）。可用Great Expectations或Soda写断言式检查。常见错误：只查空值和重复忽略业务逻辑校验（如订单结束时间早于开始时间）；质量规则未随业务变化更新。加分项：质量监控应嵌入管道（dbt test、Airflow sensor）而非事后人工检查。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "什么是数据脱敏？常见的脱敏方式有哪些？",
+    "category": "数据安全·基础·一面",
+    "answer": "数据脱敏是对敏感信息变形处理，使非授权人员无法获取原始数据同时保持分析价值。方式：替换（虚构值替换）、掩码（隐藏部分字符如138****5678）、哈希（SHA-256单向不可逆可做关联）、加密（AES可逆需密钥）、数值扰动（加随机噪声保留统计特性）、差分隐私（校准噪声提供数学保证）。常见错误：仅掩码就认为安全（可通过其他信息重识别）；测试环境使用未脱敏生产数据；哈希未加盐值易被彩虹表破解。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "数据可视化中常见的图表类型选择原则是什么？",
+    "category": "BI·基础·一面",
+    "answer": "按分析目的选择：比较用柱状图/条形图；趋势用折线图/面积图；占比用饼图（类别≤5）/堆叠柱状图；分布用直方图/箱线图/散点图；相关用散点图/气泡图；地理用地图/热力图；漏斗用漏斗图。原则：一图一观点，避免3D饼图等误导性图表，色觉友好，数据墨水比高。常见错误：饼图展示超7个类别；双Y轴图误导关联无关指标；折线图Y轴截断不当。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "请描述一个你参与过的完整数据分析项目，从需求到交付的流程。",
+    "category": "项目经验·基础·一面",
+    "answer": "完整流程：1）需求理解：与业务方明确目标、核心问题和决策场景；2）数据探查：确认数据源、表结构、质量和时间范围；3）指标定义：统一口径与业务方确认；4）取数清洗：SQL取数、处理缺失异常、关联维表；5）分析建模：描述统计、分群、漏斗、留存或预测；6）可视化报告：选合适图表，形成结论和可行动建议；7）交付跟进：汇报评审、推动落地、跟踪效果。关键证据：具体工具、数据量级、业务影响。常见错误：只讲技术不讲业务结论；未提口径对齐；没有效果验证。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "如何用窗口函数计算每个用户的连续登录天数？写出SQL思路。",
+    "category": "SQL·进阶·二面",
+    "answer": "完整流程：1）需求理解：与业务方明确目标、核心问题和决策场景；2）数据探查：确认数据源、表结构、质量和时间范围；3）指标定义：统一口径与业务方确认；4）取数清洗：SQL取数、处理缺失异常、关联维表；5）分析建模：描述统计、分群、漏斗、留存或预测；6）可视化报告：选合适图表形成结论和建议；7）交付跟进：汇报推动落地跟踪效果。关键证据：具体工具、数据量级、业务影响。常见错误：只讲技术不讲业务结论；未提口径对齐；没有效果验证。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "LAG和LEAD窗口函数的作用是什么？举一个实际业务场景。",
+    "category": "SQL·进阶·二面",
+    "answer": "LAG(col,n,default)取当前行向前第n行值，LEAD取向后第n行值。常用于同比环比、会话间隔、状态变化检测。场景：计算用户每次会话间隔：SELECT user_id,session_start,LAG(session_start)OVER(PARTITION BY user_id ORDER BY session_start)prev,TIMESTAMPDIFF(MINUTE,LAG(...)OVER(...),session_start)gap FROM sessions。LAG/LEAD支持指定偏移量和默认值。常见错误：未指定PARTITION BY跨行取到其他用户数据；LAG首行返回NULL需COALESCE；用自连接实现LAG性能差。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "MySQL 8.x如何用递归CTE查询组织架构层级？写出SQL。",
+    "category": "SQL·进阶·二面",
+    "answer": "WITH RECURSIVE org_tree AS(SELECT id,name,manager_id,1level,CAST(name AS CHAR(1000))path FROM employees WHERE manager_id IS NULL UNION ALL SELECT e.id,e.name,e.manager_id,ot.level+1,CONCAT(ot.path,'>',e.name)FROM employees e JOIN org_tree ot ON e.manager_id=ot.id)SELECT*FROM org_tree ORDER BY path。锚点查根节点，递归JOIN自身向下展开。MySQL默认递归深度1000，可设cte_max_recursion_depth。常见错误：用UNION而非UNION ALL增加去重开销；未设深度限制导致无限递归；递归成员中用聚合/窗口函数不允许。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "ClickHouse的MergeTree引擎核心原理是什么？分区和排序键如何设计？",
+    "category": "SQL·进阶·二面",
+    "answer": "MergeTree是ClickHouse最核心引擎：数据按PARTITION BY分区，每分区内按ORDER BY排序键以稀疏索引（每8192行一个索引标记）组织，后台异步合并part文件。写入生成不可变part，合并时异步合并小part。设计原则：PARTITION BY选低基数字段（如toYYYYMM(date)），粒度别太细；ORDER BY将高频过滤条件放前面遵循最左前缀；高基数列放前面提升选择性但增加合并成本。常见错误：用高基数列（如user_id）做PARTITION BY导致海量小分区；ORDER BY列过多降低稀疏索引效率；不理解合并异步刚写入需扫描多part。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "ClickHouse物化视图的工作原理是什么？在实时数仓中如何使用？",
+    "category": "SQL·进阶·二面",
+    "answer": "ClickHouse物化视图本质是INSERT触发器：数据写入源表时自动对新block执行SELECT写入目标表，不是定时刷新而是写入时增量预计算。用法：CREATE MATERIALIZED VIEW mv TO target AS SELECT...FROM source GROUP BY...。目标表用AggregatingMergeTree配合State函数（sumState/uniqState）存中间聚合状态支持增量合并。实时场景：原始日志写入源表，物化视图实时聚合成分钟粒度预聚合表，BI直接查预聚合表支撑高QPS。常见错误：直接SELECT物化视图名（应查目标表）；物化视图含JOIN语义不正确（仅新block参与）；源表结构变更后视图未同步。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "Doris和StarRocks的MPP架构和向量化执行引擎如何工作？",
+    "category": "SQL·进阶·二面",
+    "answer": "MPP：SQL解析为多个逻辑片段在多BE节点并行执行，节点间Shuffle交换数据，支持分布式JOIN和聚合，充分利用集群算力。向量化：数据按列式Batch（Doris默认4096行）组织，算子用SIMD指令批量处理，消除逐行虚函数调用和分支预测失败，宽表聚合比行式引擎快5-10倍。Doris还支持Runtime Filter（运行时将JOIN过滤下推Scan节点，支持Min/Max/In/Bloom Filter）和Pipeline执行引擎。常见错误：将Doris当OLTP高频单行更新；不理解分桶键对数据倾斜影响。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "DuckDB是什么？与SQLite和传统OLAP数据库有什么区别？",
+    "category": "SQL·进阶·二面",
+    "answer": "DuckDB是嵌入式OLAP数据库，被称为分析界的SQLite——无需启动服务，直接嵌入进程。与SQLite（OLTP行式）不同，DuckDB列式存储向量化执行，支持复杂聚合JOIN，单机处理超内存数据。与ClickHouse/Doris不同，DuckDB零依赖单文件嵌入式。适合：本地数据探索（Python中import duckdb直接查Parquet/CSV）、数据科学中替代pandas处理大数据、应用内嵌分析、CI数据测试。常见错误：用DuckDB替代生产OLAP服务（不支持并发写入和多节点）；不了解DuckDB可直接查S3上Parquet。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "pandas 2.0的PyArrow后端和Copy-on-Write模式有什么优势？",
+    "category": "Python·进阶·二面",
+    "answer": "PyArrow后端：字符串等存为Arrow格式，字符串操作性能大幅提升（C++实现比NumPy object快数倍），内存效率更高，原生缺失值支持，与Polars/DuckDB零拷贝互操作。启用pd.options.mode.dtype_backend='pyarrow'。CoW：切片时共享内存不立即复制，修改时才复制，解决SettingWithCopyWarning和链式赋值不可预测问题，pandas 3.0将默认启用。常见错误：仍用df.append()（2.0已废弃用pd.concat）；不了解Arrow string与object string性能差异。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "Polars相比pandas有哪些核心优势？Lazy API有什么特别之处？",
+    "category": "Python·进阶·二面",
+    "answer": "Polars是Rust编写的DataFrame库：多线程并行利用所有CPU核心；基于Apache Arrow列式内存零拷贝SIMD；内存只需数据量2-4倍（pandas需5-10倍）；支持大于内存流式处理collect(streaming=True)。Lazy API类似SQL查询计划器，做谓词下推、投影下推、公共子表达式消除等优化后再执行，Eager立即执行。TPCH benchmark比pandas快10-100倍。常见错误：用pandas思维逐行迭代Polars（应用pl.col()表达式链）；不理解Lazy需collect才触发；忽略Polars生态不如pandas成熟。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "处理千万级数据时，如何优化pandas的内存和速度？",
+    "category": "Python·进阶·二面",
+    "answer": "内存优化：int64降为int32/int16、字符串转category或PyArrow string、只读需要列usecols、分块chunksize、用PyArrow后端。速度优化：优先向量化避免iterrows/itertuples、用NumPy替代apply、merge前连接键转category、用eval/query、考虑迁移Polars。极端场景用DuckDB直接SQL查Parquet或Spark分布式。常见错误：apply+lambda逐行转换不找向量化替代；一次性read_csv整个大文件；忽略数据类型推断导致数值列被推为object。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "Spark 3.5的AQE有哪些核心优化？如何配置？",
+    "category": "大数据·进阶·二面",
+    "answer": "AQE在Shuffle边界收集运行时统计动态调整计划：1）动态合并Shuffle分区（coalescePartitions.enabled，目标64MB）；2）动态切换Join策略（运行时发现小表自动SortMergeJoin转BroadcastHashJoin，阈值autoBroadcastJoinThreshold默认10MB）；3）倾斜Join优化（skewJoin.enabled自动拆分倾斜分区）。Spark 3.5还引入Spark Connect和Pandas API改进。常见错误：shuffle.partitions过小导致大分区OOM；AQE无法解决无Shuffle的Stage内倾斜；广播阈值过大Driver OOM。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "Spark数据倾斜如何产生？有哪些处理手段？",
+    "category": "大数据·进阶·二面",
+    "answer": "倾斜指Shuffle时某Key数据量远大于其他Key，个别Task拖慢整个Stage。原因：空值Key、热点Key（大V粉丝数据）、数据分布不均。处理：1）开启AQE skewJoin自动优化；2）加盐salting两阶段聚合（热点Key加随机前缀局部聚合，再去前缀全局聚合）；3）广播小表避免Shuffle Join；4）空值转随机字符串分散；5）增大倾斜Key并行度repartition。排查：Spark UI看Task的Shuffle Read Size定位倾斜Key。常见错误：只调大shuffle.partitions不解决倾斜；加盐后忘记二次聚合。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "Flink的Watermark机制是什么？如何处理乱序事件？",
+    "category": "大数据·进阶·二面",
+    "answer": "Watermark衡量事件时间进度，表示\"小于Watermark的数据已全部到达\"，随数据流传播触发窗口计算。Watermark=最大事件时间-允许延迟。如BoundedOutOfOrderness(5s)，收到10:00:10数据时Watermark推进到10:00:05关闭窗口。处理乱序：设合理最大乱序时间；allowedLateness允许迟到数据更新窗口；侧输出流收集超时数据。Flink 1.18 Watermark Alignment生产可用，通过SQL Hint配置。常见错误：Watermark设太大延迟触发；不理解Watermark只增不减；并行度下某分区无数据卡住全局（需配idleness timeout）。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "Flink CDC的原理是什么？与Debezium+Kafka方案相比有何优势？",
+    "category": "数据管道·进阶·二面",
+    "answer": "Flink CDC基于数据库binlog/WAL实现变更捕获，2.x+增量快照算法无锁全量+增量无缝切换。Debezium方案需Debezium Connect捕获写Kafka再Flink消费。Flink CDC优势：架构简化省去Kafka和Connect集群；全量增量一体化框架自动处理；Flink checkpoint保证Exactly-Once；支持Schema变更；1.18+分布式快照解决大表断点续传。常见错误：高QPS源库直接跑CDC影响线上；未设server-id无法读binlog；全量阶段chunk大小不合理。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "什么是缓慢变化维（SCD）？Type 1/2/3分别怎么实现？",
+    "category": "数据仓库·进阶·二面",
+    "answer": "SCD指维度属性随时间变化需保留历史。Type 1直接覆盖旧值不保留历史，简单但无法历史分析。Type 2新增一行带start_date/end_date/is_current，事实表通过代理键关联对应版本，最常用。Type 3新增列保存旧值只保留有限历史，适用变更极少场景。现代实现：dbt snapshot自动生成Type 2（check或timestamp策略）；数据湖表格式用time travel查历史。常见错误：用自然键关联导致历史事实关联最新维度（应用代理键）；Type 2未设end_date出现多个current行。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "Airflow 2.x的TaskFlow API有什么优势？",
+    "category": "数据管道·进阶·二面",
+    "answer": "TaskFlow API用@task装饰器将Python函数包装为任务，自动处理XCom。优势：函数返回值自动序列化到XCom，下游通过参数接收无需手动push/pull；函数调用顺序自动建立依赖无需set_upstream；支持类型提示；代码更简洁。与Operator混用时，TaskFlow包装Python逻辑，Operator处理外部系统。常见错误：@task返回不可序列化的大对象（XCom默认48KB限制）；所有逻辑塞进一个task失去并行性。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "Dagster与Airflow核心设计理念有何不同？什么是资产化编排？",
+    "category": "数据管道·进阶·二面",
+    "answer": "Airflow以Task为中心关注任务执行调度，数据是隐式产物。Dagster以数据资产（Asset）为中心，将表/文件/模型定义为Software-Defined Asset，关注血缘、状态和依赖。资产化编排：定义资产及上游依赖，Dagster自动物化并追踪血缘版本质量。与dbt集成自动映射模型为资产。Airflow适合任务编排，Dagster更适合数据平台和分析工程。常见错误：将Dagster仅当调度器用未利用资产模型；Airflow中硬编码数据依赖导致血缘不可见。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "dbt在Analytics Engineering中的角色？test和snapshot解决什么问题？",
+    "category": "数据管道·进阶·二面",
+    "answer": "dbt让分析师用SQL+Jinja完成数仓Transform，支持版本控制、CI/CD、文档和测试。dbt test在schema.yml定义not_null/unique/accepted_values/relationships断言，run后自动执行阻止脏数据。dbt snapshot基于SCD Type 2自动记录历史变更，check或timestamp策略，生成dbt_valid_from/to快照表。dbt Mesh支持跨项目引用、数据契约和版本管理。常见错误：在dbt模型中写DDL/DML（dbt只做SELECT）；snapshot未配check_cols全表比较效率低。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "AB测试样本量如何计算？影响样本量的关键因素有哪些？",
+    "category": "AB测试·进阶·二面",
+    "answer": "两比例检验样本量n≈(Z_{1-α/2}+Z_{1-β})²×[p1(1-p1)+p2(1-p2)]/(p1-p2)²。关键因素：基线转化率p1、最小可检测效应MDE（MDE越小样本越大）、显著性水平α（通常0.05）、统计功效1-β（通常80%）、指标方差（σ越大样本越多）。用Evan Miller计算器或statsmodels计算。常见错误：实验后才发现样本不足（必须实验前计算）；MDE设太小实验周期不可接受；多看一个指标未做Bonferroni校正。加分项：CUPED可减少30-50%方差降低样本量。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "CUPED方差缩减的原理是什么？实际应用有哪些注意事项？",
+    "category": "AB测试·进阶·二面",
+    "answer": "CUPED用实验前协变量X调整实验后指标Y：Y_cuped=Y-θ(X-X̄)，θ=Cov(Y,X)/Var(X)。调整保持无偏，方差缩减为Var(Y)(1-ρ²)，ρ=0.7时方差减半样本量减50%。注意：协变量必须不受实验影响（实验前数据）；θ应在对照组估计避免信息泄露；X与Y相关性越高越好（通常选同指标实验前1-2周数据）；时间窗口1-2周足够。常见错误：用实验期间数据做协变量污染结果；以为CUPED能提高效应量（只缩方差）。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "什么是AB测试中的网络效应/溢出效应？违反了什么假设？如何处理？",
+    "category": "AB测试·进阶·二面",
+    "answer": "网络效应指实验组用户行为影响对照组用户，导致两组不独立。社交产品中实验组发更多内容，对照组也消费到，低估实验效果。违反SUTVA假设（一个单元处理分配不影响其他单元结果）。处理：集群随机化（以社交圈/地理区域为单位分流）；双边市场供需分别随机化或Switchback实验；图聚类分流将相连用户分到同组；ego-cluster分析。常见错误：社交/双边产品直接按用户ID分流不考虑溢出；低估效果导致错过有效功能。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "什么是Interleaving实验？什么场景下比传统AB测试更有效？",
+    "category": "AB测试·进阶·二面",
+    "answer": "Interleaving在同一次请求中将算法A/B结果混合展示，用户对哪个结果交互更多就认为哪个更优，同一用户同时接触两种算法。优势：灵敏度极高，通常只需传统AB 1/10到1/30流量即可检测差异，因消除了用户间方差，适合搜索排序快速迭代。局限：仅适用可混合结果集；无法测绝对指标只能比较相对偏好；存在位置偏差需平衡设计消除。常见错误：将Interleaving结果直接等同于AB提升幅度（更敏感但效应量不直接对应上线收益）。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "什么是长期Holdout实验？为什么需要测量长期效应？",
+    "category": "AB测试·进阶·二面",
+    "answer": "长期Holdout在实验显著全量后保留5-10%用户作为长期对照组，不享受新功能持续跟踪数周至数月。原因：短期AB可能测量到新奇效应（用户因新鲜感短期活跃提升后回落）；留存/LTV/复购需长时间显现；多实验叠加累积效应无法通过单个短期实验评估；避免\"实验显著但业务无改善\"。Netflix/LinkedIn常态化保留1%全球Holdout。常见错误：只看短期P值就全量不做长期验证；Holdout与全量组功能交叉污染；Holdout样本太小长期指标功效不足。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "什么是OSM模型？如何用它设计指标体系？",
+    "category": "指标体系·进阶·二面",
+    "answer": "OSM即Objective-Strategy-Measurement。O明确业务目标（北极星指标如提升留存）；S为达成目标的业务策略（优化推送、提升内容质量、优化新手引导）；M为每个策略定义可量化度量指标（推送点击率、消费时长、新手完成率）。设计：确定O对齐战略；通过用户旅程地图UJM找各环节策略；每个S定义1-3结果指标和过程指标；区分护栏指标（崩溃率/客诉率不能恶化）。常见错误：M层只定义结果指标不定义过程指标无法定位问题；策略和指标间无因果假设。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "电商投放了搜索广告、信息流、社交媒体三个渠道，用户可能多次触达后才下单，如何科学归因各渠道贡献？",
+    "category": "项目经验·进阶·二面",
+    "answer": "Shapley Value将转化视为多渠道合作成果，每个渠道的边际贡献是其在所有可能渠道组合顺序中贡献的平均值，满足效率性、对称性、零贡献者、可加性四条公平公理。末次点击100%归功最后触点，简单但忽视上游渠道（如品牌词被高估）。Markov Chain归因将路径建模为马尔可夫链，计算移除某渠道后转化概率变化作为贡献。Google Analytics的DDA即基于Shapley Value。常见错误：末次点击高估品牌渠道；忽视跨设备路径断裂；归因窗口设置不合理。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "什么是Cohort分析？如何用Cohort分析用户留存？",
+    "category": "指标体系·进阶·二面",
+    "answer": "Cohort将用户按共同特征（通常注册时间）分组观察随时间行为。留存Cohort表行是注册批次，列是注册后第N周留存率，对角线看同一自然周期。价值：比整体留存更能揭示产品变化（新批次第7日留存逐批提升说明改进有效）；区分新老用户差异；识别留存曲线形状（指数衰减缺乏粘性，趋于平稳有长期群）。SQL实现：先按注册日期cohort，再算各周期活跃数/cohort总人数。常见错误：用自然日期而非注册日期分组混入不同生命周期用户；分母用当期活跃而非初始cohort人数导致虚假留存回升。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "如何预测用户LTV？常用方法有哪些？",
+    "category": "指标体系·进阶·二面",
+    "answer": "LTV是用户全生命周期创造的总价值。预测方法：1）历史平均法LTV=ARPU×平均生命周期简单但忽略个体差异；2）Cohort留存法：LTV=Σ(留存率_t×ARPU_t)，需考虑折现率；3）BG/NBD+Gamma-Gamma概率模型预测购买频次和金额，适合非契约电商；4）ML方法用用户特征训练XGBoost/DeepSurv生存分析精度更高但需验证。应用：LTV/CAC>3为健康。常见错误：用短期数据外推长期LTV高估；不考虑流失率直接累加；LTV不含可变成本高估利润。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "RFM模型是什么？如何用它做用户分群？",
+    "category": "指标体系·进阶·二面",
+    "answer": "RFM通过R最近消费天数（越小越好）、F消费频次（越高越好）、M消费金额（越高越好）三维度衡量客户价值。各维度按分位数打1-5分，按组合分群：R高F高M高为重要价值用户，R低F低M低为流失用户，典型8群。差异化运营：重要挽留用户发召回券，重要发展用户推会员升级。适用有交易行为业务（电商/零售），纯内容产品需改造（M替换为消费时长）。常见错误：三维度等权重（不同业务应加权）；阈值用全局固定值而非分位数忽略数据分布。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "如何做电商APP漏斗分析？各环节转化率骤降如何定位？",
+    "category": "项目经验·进阶·二面",
+    "answer": "漏斗路径：曝光→点击→加购→下单→支付，每步定义明确事件和时间窗口。计算各步转化率后多维下钻（渠道/端/新老用户/品类/版本）定位下降维度组合。骤降可能是技术故障（支付接口报错），渐变可能是竞品或季节因素。用路径桑基图看用户流失去向，用AB测试验证假设。技术上用ClickHouse/Doris的windowFunnel/sequenceMatch函数。常见错误：每步用不同用户群计算（必须同一批用户在窗口内有序转化）；时间窗口不合理；只看整体不下钻。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "产品经理想在首页加弹窗推送活动，你作为分析师如何评估？",
+    "category": "项目经验·进阶·二面",
+    "answer": "框架：1）明确目标可量化（活动参与率？GMV增量？）；2）定义核心指标（点击率/参与率/GMV增量）和护栏指标（跳出率/次日留存/客诉率）；3）分析历史类似弹窗效果、关闭率、最佳推送时间；4）设计AB实验随机分组计算样本量；5）用户分群分析异质性效应（新老用户/活跃沉默用户反应不同）；6）跟踪7/30日留存和LTV防止短期点击损害长期体验；7）给出是否值得做和最优策略建议。常见错误：只看点击率不看体验损害；不做AB直接全量；不区分人群异质效果。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "线上报表数据突然翻倍，请描述你的排查思路。",
+    "category": "项目经验·进阶·二面",
+    "answer": "系统化排查：1）确认范围：一个还是多个指标？一张还是所有报表？时间范围？2）比对ODS原始数据是否异常——ODS翻倍则是源系统/同步问题，ODS正常则是ETL逻辑问题；3）检查管道：Airflow任务状态、是否有重跑补数导致重复写入；4）检查JOIN膨胀：近期代码变更是否导致一对多笛卡尔积（维表重复键）；5）检查口径变更：是否有人改了指标定义或过滤条件；6）检查源系统是否有数据迁移刷数；7）根因确认后回滚或去重重跑。常见错误：直接改数字不查根因；只查报表层不查ODS；未通知业务方导致错误决策。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "Spark任务运行到99%卡住，最后几个Task特别慢，如何排查解决？",
+    "category": "项目经验·进阶·二面",
+    "answer": "典型数据倾斜。排查：Spark UI→Stages看慢Task的Shuffle Read Size确认倾斜；SQL页面定位哪个JOIN/聚合Stage；SELECT key,COUNT(*)GROUP BY key ORDER BY 2 DESC LIMIT 10找热点Key。解决：开启AQE skewJoin自动拆分；热点Key加盐两阶段聚合；广播小表避免Shuffle；空值转随机串分散；repartition增大倾斜Key并行度。常见错误：盲目调大executor内存和shuffle.partitions不治本；加盐后忘记二次聚合；不查Spark UI靠猜。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "业务方反馈两个看板的\"日活\"数据不一致，如何解决？",
+    "category": "项目经验·进阶·二面",
+    "answer": "口径不一致最常见。排查：1）确认定义——一个用user_id去重另一个用device_id？一个含后台静默启动另一个只算前台？时间范围自然日vs滚动24小时？2）比对SQL过滤条件、去重字段、关联表；3）确认数据源——一个查Doris实时表另一个查Hive离线表（延迟/去重窗口不同有差异）；4）确认数据更新时间；5）建立指标平台/语义层（dbt Semantic Layer/Cube）统一定义所有看板通过同一API取数；6）数据契约文档化变更需评审。常见错误：只改数字不统一口径下次还出问题；不理解实时离线天然有差异需定义可接受范围。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "贝叶斯统计与频率派的核心区别？贝叶斯在AB测试中如何应用？",
+    "category": "统计学·进阶·二面",
+    "answer": "频率派：参数固定未知常数，用P值和置信区间（95%CI是反复抽样包含真值的比例）。贝叶斯派：参数是随机变量有先验P(θ)，通过P(θ|D)∝P(D|θ)P(θ)得后验，结果是可信区间（直接表示参数在某范围的概率）。贝叶斯AB：对转化率设Beta先验，数据更新后验，计算P(B>A)和期望损失，可随时看结果无需等固定样本量，天然支持序贯检验。常见错误：认为贝叶斯不受多重检验影响；先验选择不当引入偏差；混淆可信区间与置信区间解释。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "双重差分法（DID）的原理是什么？需要满足什么前提？",
+    "category": "统计学·进阶·二面",
+    "answer": "DID比较处理组和对照组在干预前后的变化差异。模型Y=β0+β1·Treat+β2·Post+β3·(Treat×Post)+ε，β3为DID估计量。核心假设平行趋势：若无干预两组结果趋势应平行，可用事件研究图检验干预前趋势。其他要求SUTVA、无预期效应。应用：某城市上线政策选未上线城市对照，APP灰度部分用户。常见错误：平行趋势不满足仍用DID估计有偏；对照组选择不当；忽略时间和个体固定效应。加分项：合成控制法在找不到合适对照时用加权组合构造合成对照。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "Prophet时间序列预测模型的原理和适用场景是什么？",
+    "category": "统计学·进阶·二面",
+    "answer": "Prophet为加法模型y(t)=g(t)趋势+s(t)季节性+h(t)节假日+ε。趋势支持线性/逻辑增长（饱和上限），季节性用傅里叶级数拟合年/周/日周期，节假日自定义regressor。优势：对缺失值异常值鲁棒、自动检测变点、无需平稳性检验（与ARIMA不同）、业务可解释调整。适合有强季节性和节假日效应的业务指标（DAU/销售额/流量），需多年日/周粒度数据。不适合无季节性高频数据、金融数据、多变量协整预测。常见错误：用Prophet预测股价；不做交叉验证用默认参数；异常值（双十一）未标记为节假日。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "如何做时序数据异常检测？Isolation Forest和STL分别怎么用？",
+    "category": "统计学·进阶·二面",
+    "answer": "按数据特征选方法：1）统计法3σ、箱线图1.5IQR、Grubbs检验；2）时序法STL分解为趋势+季节+残差，残差超阈值为异常，适合强季节性数据；移动平均+动态阈值（同环比超N倍标准差）；3）Isolation Forest通过随机划分隔离异常点（异常点路径短），适合多维特征异常检测不依赖分布假设。监控DAU突降用STL去周季节性看残差；多维度组合异常用Isolation Forest。常见错误：强季节性数据直接用3σ误报周期性波动；contamination参数设置不当；告警阈值不区分工作日周末。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "Apache Superset和Metabase各自定位和优劣势？如何BI选型？",
+    "category": "BI·进阶·二面",
+    "answer": "Superset：Python技术栈，功能全面——50+数据源、SQL Lab即席查询、丰富可视化、行级安全、嵌入式分析，适合有SQL能力的团队。劣势是需二次开发运维，学习曲线陡。Metabase：Clojure技术栈，主打低门槛——非技术人员点选构建查询，设置简单。劣势是复杂可视化定制弱，企业版付费。选型：非技术人员多选Metabase；嵌入式分析深度定制选Superset；预算充足企业级治理选Tableau/Power BI。2026趋势：Headless BI让BI工具只负责可视化。常见错误：过度追求工具功能而忽略团队SQL能力。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "Text-to-SQL的技术原理是什么？Vanna.ai这类工具如何工作？",
+    "category": "AI数据分析·进阶·二面",
+    "answer": "Text-to-SQL将自然语言转为SQL。技术路径：1）LLM直接生成：Schema+Few-shot+问题放Prompt输出SQL；2）RAG增强：从元数据和历史SQL检索相关表结构和相似SQL注入Prompt；3）Fine-tuning用领域SQL语料微调开源模型（SQLCoder）。Vanna.ai是MIT协议的Python RAG框架，训练时DDL+文档+历史SQL存入向量库，推理时检索上下文调LLM生成SQL，支持任意数据库和LLM，可私有部署。关键挑战：Schema linking找对表字段、复杂嵌套查询、方言差异、幻觉。常见错误：不给Schema就要求生成SQL；生成后不执行验证直接给业务用。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "LLM如何辅助数据洞察生成？自动分析报告的典型流程是什么？",
+    "category": "AI数据分析·进阶·二面",
+    "answer": "流程：1）数据接入获取数据集；2）自动统计分析：Python计算描述统计、趋势、维度下钻、异常检测、相关性生成结构化洞察数据；3）Prompt组装：将统计结果、元数据、业务背景注入；4）LLM将数字转化为自然语言洞察，区分信号噪声给出可能原因建议；5）生成ECharts/Matplotlib可视化代码；6）组装为HTML/PDF报告。洞察质量取决于统计分析深度而非LLM本身——LLM擅长表达但不擅长发现深层规律，必须先有可靠统计计算。常见错误：让LLM直接看原始数据超上下文且幻觉；不做事实校验LLM编造数字。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "AI Agent在数据分析中的工作流是什么？比单次Text-to-SQL有何优势？",
+    "category": "AI数据分析·进阶·二面",
+    "answer": "Agent用ReAct循环：理解问题→规划步骤→生成SQL/Python执行→观察结果→反思调整（报错自动修正、异常时下钻）→多轮迭代→生成可视化报告。相比单次Text-to-SQL的优势：错误自修复（SQL报错读错误信息自动修正）；多步推理（先查总体发现异常再下钻定位原因，单次SQL无法完成）；多工具调用（计算器/图表/统计检验）；多轮上下文保持。实现用LangChain Agent/AutoGen/DB-GPT。挑战：可能死循环、幻觉结论、需权限控制和沙箱。常见错误：不给Agent执行反馈和修正机会；不做SQL安全限制。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "Apache Iceberg、Hudi和Delta Lake三大表格式有何核心区别？如何选型？",
+    "category": "数据仓库·困难·三面",
+    "answer": "三者都在Parquet/ORC上提供ACID、Schema演进、Time Travel。Iceberg：Apache治理引擎中立性最好（Spark/Flink/Trino/Doris/Snowflake/BigQuery），支持隐藏分区和分区演进（无需重写数据改分区策略），元数据分层manifest组织，适合多引擎共享。Hudi：Uber起源，强项Upsert/Delete（MoR模式）、增量拉取和流式写入，索引成熟，适合CDC入湖频繁更新。Delta Lake：Databricks主导，Spark深度集成，UniForm兼容Iceberg/Hudi元数据，多引擎支持弱于Iceberg。选型：多引擎多云选Iceberg；CDC高频更新选Hudi；重度Spark选Delta。常见错误：只看功能列表忽略团队技术栈；混淆表格式和存储格式。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "什么是Lakehouse架构？它解决了传统数仓和数据湖的什么问题？",
+    "category": "数据仓库·困难·三面",
+    "answer": "Lakehouse在数据湖低成本存储上提供数仓ACID、治理和高性能查询。传统痛点：数据湖缺乏事务Schema不强制查询性能差需额外数仓；数仓存储成本高锁定供应商不支持非结构化。Lakehouse通过开放表格式（Iceberg/Hudi/Delta）在对象存储实现ACID和Schema管理，配合向量化引擎（Doris/Trino/Spark）提供高性能SQL。优势：统一存储消除湖→仓ETL；支持结构化+非结构化；开放格式避免锁定；存算分离弹性扩展。2026流批一体Lakehouse（Kafka+Flink+Iceberg+Doris）成为实时数仓主流。常见错误：用了Iceberg就认为是Lakehouse（还需查询引擎和治理配套）；忽视小文件和compaction。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "多臂老虎机在AB测试中如何应用？与传统固定分配有何区别？",
+    "category": "AB测试·困难·三面",
+    "answer": "MAB是序贯决策算法，在探索（尝试不同版本收集信息）和利用（流量倾向更好版本）间平衡。Thompson Sampling基于Beta后验概率按各臂最优概率分配；UCB选置信上界最高臂。与传统AB区别：传统实验固定50/50分流结束后决策，MAB动态调整流量好版本自动获更多流量；MAB减少展示差版本的机会成本；适合短期优化（标题素材优选、推荐快速迭代）；不适合需精确测量长期效应或交互效应场景。常见错误：在需统计推断精确效应场景用MAB（流量倾斜使估计有偏）；忽视冷启动问题（初期数据不足）。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "什么是Headless BI？指标层（Semantic Layer）解决了什么问题？",
+    "category": "BI·困难·三面",
+    "answer": "Headless BI将指标定义计算从BI前端剥离，集中到独立语义层，通过API向BI/Notebook/反向ETL/AI Agent提供一致指标。核心价值：指标一致性（同一指标在所有工具口径相同，消除\"一个公司十个DAU\"）；定义即治理（一处定义版本控制权限）；复用避免重复SQL；AI友好（LLM通过指标层API取数无需访问底层表降低Text-to-SQL出错率）。代表工具dbt Semantic Layer、Cube.dev、MetricFlow。架构类似\"数仓API网关\"。常见错误：理解为不用BI工具（仍需前端可视化只是指标逻辑后移）；语义层只定义简单指标不支持复杂口径。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "倾向得分匹配（PSM）的原理和步骤是什么？有什么局限性？",
+    "category": "统计学·困难·三面",
+    "answer": "PSM用于观察性数据中处理组和对照组协变量不均衡时匹配使两组可比。步骤：1）Logistic回归估计倾向得分e(X)=P(T=1|X)；2）为处理组匹配e(X)最接近的对照组（最近邻/卡尺/核匹配）；3）检验匹配后协变量平衡性（SMD<0.1）；4）在匹配样本上估计ATT。假设：无混淆性（所有混淆变量已观测）、重叠性（两组有共同支撑域）。局限：只能控制可观测混淆无法控制未观测混淆（需IV/DID补充）；匹配可能丢失大量样本；对模型设定敏感。常见错误：匹配后不检验平衡性就报告结果；以为PSM解决所有内生性。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "工具变量法（IV）的原理是什么？好的工具变量需满足什么条件？",
+    "category": "统计学·困难·三面",
+    "answer": "IV处理内生性问题（解释变量与误差项相关）。2SLS：第一阶段用工具变量Z回归内生处理变量T得预测值T̂；第二阶段用T̂回归Y。好IV三条件：1）相关性：Z与T强相关，F>10检验弱工具变量；2）外生性/排他性：Z只通过T影响Y不通过其他路径，最关键且不可直接检验；3）独立性：Z与混淆变量独立。经典案例：征兵抽签号作IV估计参军对收入影响。IV估计的是LATE（局部平均处理效应）而非ATE。常见错误：用弱工具变量偏差比OLS更大；声称外生性已\"验证\"（实际只能论证不能证明）。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "如何阅读SQL执行计划？EXPLAIN结果中哪些信息最关键？",
+    "category": "SQL·困难·三面",
+    "answer": "关键信息：1）访问类型type：system>const>eq_ref>ref>range>index>ALL，ALL全表扫描需优化；2）扫描行数rows过大说明索引未命中；3）Extra：Using index覆盖索引好，Using temporary临时表差，Using filesort文件排序差；4）Key列实际使用索引，NULL说明未用；5）JOIN顺序优化器选择的驱动表。优化：全表扫描加索引；filesort的ORDER BY字段加索引；temporary的GROUP BY加索引或调tmp_table_size；JOIN顺序不对用STRAIGHT_JOIN。ClickHouse/Doris中EXPLAIN看分布式计划和Shuffle方式。常见错误：只看有没有用索引不看扫描行数；忽略子查询被改写后的实际计划。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "什么是差分隐私？在数据发布和分析中如何应用？",
+    "category": "数据安全·困难·三面",
+    "answer": "差分隐私是可证明的隐私保护框架：对任意相邻数据集D和D'（差一条记录），算法输出概率比满足Pr[M(D)∈S]≤e^ε·Pr[M(D')∈S]，ε为隐私预算越小保护越强但噪声越大。机制：拉普拉斯机制对数值查询加Laplace噪声（尺度=敏感度/ε）；指数机制用于非数值输出；高斯机制+组合定理。应用：Apple iOS键盘学习用本地差分隐私；Google RAPPOR；美国人口普查2020；分析师发布聚合统计可用OpenDP/PipelineDP。权衡ε越小隐私越好但小群体数据噪声大不可用。常见错误：加随机噪声就认为是差分隐私（必须有敏感度证明和预算追踪）；不考虑多次查询预算组合耗尽ε。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "数据湖小文件问题怎么产生的？有哪些解决方案？",
+    "category": "大数据·困难·三面",
+    "answer": "原因：流式写入每checkpoint/batch生成小文件；分区过细（天+小时+地区）；每次INSERT少量数据；Hudi/Iceberg MoR产生大量delta log。危害：NameNode/元数据内存压力；查询打开大量文件开销大；task数远大于数据量。解决：1）Compaction定期合并（Iceberg rewrite_data_files、Hudi clustering/compaction）；2）写入端控制增大batch间隔和批量大小（Flink sink.buffer-flush配置）；3）合理分区粒度避免小时级以下；4）Clustering/排序写入；5）Doris/StarRocks BE自动compaction。常见错误：只做compaction不优化写入端新小文件持续产生；compaction频率太高影响查询。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "什么是流批一体？Flink如何实现流批一体？",
+    "category": "大数据·困难·三面",
+    "answer": "流批一体用同一套API和引擎同时支持无限数据流和有限数据集批处理，避免维护两套系统。Flink实现：1）统一API：DataStream在BATCH模式优化（无checkpoint、哈希聚合、调度策略不同），Table/SQL对流批透明；2）统一运行时：底层流引擎批是流的特例（有界流），BATCH模式做sort-merge join、数据本地性、task失败重试容错；3）统一存储：Iceberg/Hudi/Paimon支持流写批读；4）Flink 1.18+动态分区裁剪、SQL Gateway、Watermark alignment生产可用。收益：同一套Flink SQL做实时+离线减少代码重复运维。常见错误：以为实时完全替代离线（批处理在大规模回溯仍有优势）；BATCH模式误用流的Watermark语法。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "Spark 3.5的Pandas API on Spark是什么？与PySpark和pandas有何区别？",
+    "category": "大数据·困难·三面",
+    "answer": "Pandas API on Spark（原Koalas）提供与pandas几乎一致API但底层运行Spark分布式。区别：pandas单机内存处理，Pandas API on Spark分布式处理TB级；比PySpark DataFrame对pandas用户更友好；支持plot/head/info等pandas习惯；底层翻译为Spark计划支持AQE。Spark 3.5+通过Spark Connect支持远程连接。局限：不是100%兼容pandas（部分API抛NotImplementedError）；逐行apply受序列化和Python UDF开销影响；小数据不如直接pandas快。常见错误：用Pandas API on Spark做高频小数据操作；循环中反复collect导致性能问题。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "请设计日增10亿事件、端到端延迟<3秒的实时数仓架构。",
+    "category": "项目经验·困难·三面",
+    "answer": "Pandas API on Spark（原Koalas）提供与pandas一致API但底层运行Spark分布式。pandas单机内存处理，Pandas API on Spark可处理TB级；比PySpark对pandas用户更友好；支持plot/head/info等习惯用法；底层翻译为Spark计划支持AQE。Spark 3.5+通过Spark Connect远程连接。局限：非100%兼容pandas（部分API抛NotImplementedError）；逐行apply受序列化和Python UDF开销影响；小数据不如直接pandas快。常见错误：做高频小数据操作；循环中反复collect。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "Data Mesh四大核心原则是什么？在大型企业如何落地？",
+    "category": "数据仓库·困难·三面",
+    "answer": "四原则：1）面向领域的数据所有权：数据按业务域划分各域团队负责全生命周期；2）数据即产品：每个域封装数据为产品提供SLA/文档/质量/版本化API；3）自助数据平台：统一基础设施让域团队自助构建不需管理底层；4）联邦计算治理：全局标准通过自动化策略引擎执行而非人工审批。落地：选1-2域试点，湖仓上建立域边界，dbt Mesh实现跨项目引用和数据契约，DataHub/OpenMetadata做联邦目录，定义数据产品SLA。关键挑战是组织变革（Conway定律）比技术更难。常见错误：买工具就是Data Mesh；无组织授权和KPI调整就推技术分权；忽视全局治理导致标准碎片化。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "如何设计AB实验平台的统计分析引擎，支持CUPED和序贯检验？",
+    "category": "AB测试·困难·三面",
+    "answer": "引擎架构：1）数据接入：按实验ID+分组聚合为用户级宽表（含实验前协变量）；2）方差缩减：CUPED模块计算θ=Cov(Y,X)/Var(X)（对照组估计），输出调整指标，支持Multi-CUPED；3）检验模块：二分类用Z检验/Fisher精确，连续用Welch's t，比率用Delta Method，多臂ANOVA；输出ATE/SE/CI/P值；4）序贯检验：mSPRT或Always-Valid P-Value支持随时看结果不膨胀假阳性；5）多重比较：Bonferroni或BH-FDR控制；6）HTE：因果树/Meta-Learner发现亚组异质效应；7）质量校验：A/A测试、SRM卡方检验、护栏告警。常见错误：序贯不做alpha消耗；CUPED协变量受污染；HTE过拟合需交叉验证。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "如何设计企业级指标平台解决口径混乱问题？",
+    "category": "指标体系·困难·三面",
+    "answer": "构建Headless BI语义层：1）指标定义层：YAML/代码定义名称/owner/公式/口径/来源模型/单位/频率，如DAU=COUNT(DISTINCT user_id)WHERE event='active'；2）编译层：dbt Semantic Layer/Cube将指标编译为优化SQL支持自动JOIN和时间推导；3）服务层：GraphQL/REST API所有BI/Notebook/AI Agent通过同一API获取，物理同一SQL保证口径唯一；4）治理：审批流程/版本管理/血缘/RBAC权限/审计；5）消费层：BI通过Live Connection，LLM通过Text-to-Metrics（选指标和维度而非写SQL）；6）认证区分Certified和Community指标。常见错误：变成另一个报表系统；只定义指标不做权限血缘；口径变更无版本控制和影响通知。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "新功能无法做AB实验（全量推送/政策变更），如何用观察性数据评估因果效应？",
+    "category": "统计学·困难·三面",
+    "answer": "按场景选方法：1）DID：有处理组对照组且平行趋势，用事件研究图验证；2）合成控制法SCM：处理单元少，用多对照单元加权构造合成组，最小化预处理特征差异；3）PSM：有丰富特征匹配可比组，但只控可观测混淆；4）RDD：处理分配由连续变量阈值决定，比较阈值两侧近似随机；5）IV：存在外生冲击只影响处理不直接影响结果。实战建议：多方法交叉验证，做安慰剂检验和敏感性分析（Rosenbaum bounds），诚实报告局限性。常见错误：只用一种方法不做交叉验证；声称\"证明因果\"（观察性研究有不可检验假设）；忽视平行趋势/外生性等关键假设的论证。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "Spark作业处理5TB数据运行5小时，如何系统性调优？",
+    "category": "大数据·困难·三面",
+    "answer": "方法论：1）诊断：History Server找最慢Stage，看Shuffle量/Spill/GC/倾斜；2）数据层：谓词下推Parquet只读取需列和行组、分区裁剪、文件128MB-1GB（小文件先compaction）、Bucket JOIN避免Shuffle；3）内存Shuffle：shuffle.partitions设为总量/256MB（如20000），memoryOverhead设10-20%，开AQE合并小分区和倾斜；4）Join：广播小表/*+BROADCAST*/，SortMerge大表，Bucket Join，倾斜加盐；5）缓存：重复用DataFrame.persist(MEMORY_AND_DISK)，不缓存太多；6）序列化Kryo注册类；7）executor-cores 4-5最佳。验证：控制变量法每次改一个参数对比。常见错误：一次改10个参数不知哪个有效；盲目调大资源可能让倾斜更严重。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "ClickHouse分布式表原理是什么？如何解决分布式JOIN和数据倾斜？",
+    "category": "SQL·困难·三面",
+    "answer": "分布式表是逻辑视图，查询分发各shard并行执行后协调节点合并。写入推荐直接写本地表+负载均衡（分布式表异步写入有丢失风险）。分布式JOIN：1）Colocated JOIN两表按相同KEY分片各shard本地JOIN性能最好；2）Broadcast小表广播各shard（join_algorithm='partial_merge'）；3）GLOBAL JOIN右表结果收集临时表再分发避免重复执行。数据倾斜：选高基数均匀分片键（cityHash64(user_id)）避免日期/地区；SummingMergeTree/AggregatingMergeTree预聚合；Projection自动路由；Skip Index（minmax/bloom_filter）。常见错误：GLOBAL JOIN右表太大OOM；以为副本提升查询并发（查询只走一副本）。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "如何设计企业级AI数据分析Agent系统，支持自然语言取数和自动报告？",
+    "category": "AI数据分析·困难·三面",
+    "answer": "六层架构：1）意图理解：LLM分类查询/诊断/报告/元数据，多轮对话消歧；2）知识层：数据目录API（表/字段/血缘）、指标语义层API（Certified Metrics）、历史SQL RAG、业务知识库向量检索；3）规划执行：ReAct/Plan-and-Execute，Text-to-Metric优先走语义层API，Text-to-SQL带Schema RAG和Few-shot，Python沙箱做统计检验，执行错误自动修正最多3轮；4）安全治理：AST解析只允许SELECT、行级列级权限继承、敏感字段脱敏、查询成本限制、全链路审计；5）验证：dry-run/EXPLAIN、结果合理性检查、来源标注；6）输出：自然语言+ECharts图表+明细表，导出PPT/PDF。关键：SQL准确率>90%、响应<30秒。常见错误：LLM直接访问全量Schema上下文爆炸；不做权限控制和结果校验。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "公司从Hive数仓迁移到Lakehouse，请给出迁移方案和风险控制。",
+    "category": "项目经验·困难·三面",
+    "answer": "四阶段：1）评估规划：盘点Hive表/数据量/依赖/SLA按价值分级，确定Iceberg+Doris+Spark+dbt技术栈；2）基础设施：部署REST Catalog、配置引擎写入Iceberg、Flink CDC实时入湖+Spark迁移历史、搭目录和质量监控；3）分批迁移：按域先迁ODS对账后迁DWD/DWS最后ADS，双跑策略对账一致后切换，优先迁性能痛点最严重的表；4）退役优化：停止Hive归档冷数据，Iceberg expire_snapshots/compaction/analyze。风险：data-diff逐行校验一致性；做基准测试防性能回退；双跑1个月可回退；Hive UDF和复杂SQL改写工作量不低估。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "什么是数据血缘？它在数据治理中有什么作用？",
+    "category": "数据治理·基础·一面",
+    "answer": "数据血缘记录数据从源系统经过各处理环节到最终消费的流转关系，包括表级、字段级和作业级血缘。作用：1）影响分析：上游表结构变更时评估下游影响范围；2）根因分析：数据异常时追溯到源头作业；3）合规审计：GDPR等法规要求知道个人数据流向。血缘可通过Airflow、dbt、Spark等工具的插件自动采集，存入DataHub/OpenMetadata等目录平台。常见错误：只采集表级血缘不采集字段级（无法精准定位字段影响）；血缘不随代码变更自动更新需人工维护。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "如何用SQL计算次日留存率、7日留存率和30日留存率？",
+    "category": "SQL·进阶·二面",
+    "answer": "留存率=第N天仍活跃用户数/注册日新增用户数。思路：1）注册表取每日新增用户（注册日期+user_id）；2）登录表取每日活跃用户（活跃日期+user_id）；3）LEFT JOIN注册表和登录表（同user_id且DATEDIFF(活跃日期,注册日期)=N）；4）按注册日期分组COUNT(DISTINCT login.user_id)/COUNT(DISTINCT reg.user_id)。ClickHouse可用retention函数：retention(cond1,cond2,...)返回0/1数组，配合arraySum计算各周期留存。注意：分母必须是注册日新增用户而非第N天前所有用户；需考虑跨时区统一日期口径。常见错误：用活跃日期分组而非注册日期（混入非同期群用户）；分母用注册后N天仍在的用户导致幸存者偏差。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "SQL中如何查询每组Top N的记录？请写出至少两种方法。",
+    "category": "SQL·进阶·二面",
+    "answer": "引擎架构：1）数据接入：按实验ID+分组聚合为用户级宽表含实验前协变量；2）方差缩减：CUPED模块θ=Cov(Y,X)/Var(X)在对照组估计，支持Multi-CUPED；3）检验模块：二分类用Z检验/Fisher，连续用Welch's t，比率用Delta Method，多臂ANOVA，输出ATE/SE/CI/P值；4）序贯检验：mSPRT或Always-Valid P-Value支持随时看结果不膨胀假阳性；5）多重比较：Bonferroni或BH-FDR控制；6）HTE：因果树/Meta-Learner发现亚组效应；7）质量校验：A/A测试、SRM卡方检验、护栏告警。常见错误：序贯不做alpha消耗；CUPED协变量受污染；HTE过拟合需交叉验证。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "pandas中如何高效做条件赋值和分箱（Binning）操作？",
+    "category": "Python·进阶·二面",
+    "answer": "条件赋值推荐用numpy.select或df.loc链式条件，避免iterrows循环。多条件：df['level']=np.select([df['score']>=90,df['score']>=60],['A','B'],default='C')。分箱用pd.cut（等距分箱）或pd.qcut（等频分箱）：df['age_bin']=pd.cut(df['age'],bins=[0,18,30,50,100],labels=['少年','青年','中年','老年'])；pd.qcut按分位数分箱保证每箱人数相近。pandas 2.x中可用df.loc配合布尔索引赋值，CoW模式下行为更可预测。常见错误：用apply+lambda逐行if-else（性能差10-100倍）；cut的bins边界重叠或遗漏（注意右开右闭参数right）；qcut在重复值处可能报错（duplicates='drop'）。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "Data Vault 2.0的Hub、Link、Satellite分别是什么？与Kimball有何区别？",
+    "category": "数据仓库·进阶·二面",
+    "answer": "Data Vault 2.0结构：Hub存储业务主键（如客户ID），Link存储Hub间关系（如订单-客户关联），Satellite附着于Hub/Link存储描述属性和历史（带时间戳）。它强调可审计、可追溯、敏捷迭代，适合源系统多变合规要求高的企业。与Kimball区别：Kimball面向业务过程分析星型模型查询友好；Data Vault面向数据集成保留完整历史查询需多表JOIN；Kimball需上游数据稳定后建模，Data Vault可增量添加新源不改已有结构；Data Vault通常作EDW原始层，其上建Kimball信息集市供BI。常见错误：直接在Data Vault上做报表（性能差应建宽表）；将Data Vault等同于3NF。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "如何用Great Expectations或Soda搭建数据质量检查？",
+    "category": "数据治理·进阶·二面",
+    "answer": "方法论：1）诊断：History Server找最慢Stage，看Shuffle量/Spill/GC/倾斜；2）数据层：谓词下推Parquet只读需列、分区裁剪、文件128MB-1GB（小文件先compaction）、Bucket JOIN避免Shuffle；3）内存Shuffle：shuffle.partitions设为总量/256MB，memoryOverhead设10-20%，开AQE合并小分区和倾斜；4）Join：广播小表/*+BROADCAST*/，SortMerge大表，倾斜加盐；5）缓存：重复用DataFrame.persist(MEMORY_AND_DISK)；6）Kryo序列化注册类；7）executor-cores 4-5最佳。控制变量法每次改一个参数对比。常见错误：一次改10个参数不知哪个有效；盲目调大资源可能让倾斜更严重。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "用户留存率持续下降，你会如何从数据角度分析原因并给出建议？",
+    "category": "项目经验·进阶·二面",
+    "answer": "分析框架：1）确认问题：是新用户留存还是老用户留存下降？下降幅度和起始时间？2）Cohort拆解：按注册周/月看各批次留存曲线，定位是新批次质量下降还是全量老化；3）维度下钻：渠道（是否某渠道获客质量差）、端（iOS/Android某版本bug）、新老用户、地域、用户分层（RFM高中低价值用户）；4）漏斗分析：从新增→激活→核心行为→留存各环节转化率变化，定位流失关键步骤；5）外部因素：竞品发布活动、季节因素、产品版本更新（对比版本前后留存）；6）定量验证：用相关性分析和AB测试验证假设；7）建议：优化低质渠道投放、修复版本bug、改进新手引导、召回高价值流失用户。常见错误：只看整体留存不做Cohort和维度下钻；混淆相关性和因果关系直接下结论。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "GMV同比增长20%，但老板觉得数据有问题，你如何验证数据准确性？",
+    "category": "项目经验·进阶·二面",
+    "answer": "验证步骤：1）口径核对：GMV定义是否包含退款/取消订单？是否含税和运费？同比期间口径是否一致（去年可能未含某业务线）；2）数据链路对账：从ODS订单表→DWD明细→DWS汇总→ADS报表逐层COUNT/SUM对账，定位哪一层引入差异；3）多源交叉验证：与支付系统GMV、财务系统收入数据对比，差异在合理范围内（如时间差导致）；4）维度拆解：按品类/渠道/地区拆解20%增长来源，判断是某业务线暴涨还是均匀增长，某品类异常增长可能是刷单；5）异常检测：检查是否有测试订单未清理、重复计算（JOIN膨胀）、汇率计算错误；6）趋势检查：看月度/周度GMV趋势是否平滑，有无突兀跳变；7）与业务侧确认：是否有大促活动、新业务并表、价格调整等合理解释。常见错误：只验证报表层不追溯ODS源头；忽略口径变更导致同比失真。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "请设计一个用户画像标签系统的数据架构。",
+    "category": "项目经验·进阶·二面",
+    "answer": "架构分四层：1）数据层：用户基础属性（MySQL binlog CDC入湖）、行为日志（Kafka+Flink实时聚合）、交易数据（Spark批量计算）、第三方数据；2）计算层：批处理用Spark/dbt计算T+1标签（如历史累计消费、RFM分群），流处理用Flink计算实时标签（如当前会话意图、最近浏览品类），ML用Spark MLlib/XGBoost预测标签（如流失概率、LTV预测）；3）存储层：标签宽表存Doris/StarRocks（高并发点查+圈人），Elasticsearch支持多标签组合筛选，Redis缓存高频标签；4）服务层：标签查询API、人群圈选引擎、AB实验分群对接、营销系统推送。标签管理：标签字典（名称/口径/更新频率/owner）、标签生命周期管理、数据质量监控、权限控制（敏感标签脱敏）。常见错误：标签只建不管（大量废弃标签无人维护）；实时标签和离线标签口径不一致。"
+  },
+  {
+    "role": "data_analyst",
+    "question": "如何用Prompt Engineering让LLM准确生成复杂的分析SQL？有哪些实战技巧？",
+    "category": "AI数据分析·进阶·二面",
+    "answer": "实战技巧：1）Schema上下文：提供完整CREATE TABLE DDL含字段注释和外键关系，这是准确率基础；2）Few-shot示例：给3-5个业务问题→正确SQL示例覆盖典型模式（窗口函数、CTE、多表JOIN），示例质量比数量重要；3）思维链：要求LLM先解释分析思路再写SQL，复杂查询拆解为CTE逐步构建；4）方言和约束：明确指定MySQL 8.x/ClickHouse/Doris方言，要求只输出可执行SQL；5）自我校验：要求LLM检查列名是否存在、聚合与GROUP BY是否匹配、是否有笛卡尔积风险；6）执行反馈循环：SQL执行报错时将错误信息返回LLM让其修正（ReAct模式），最多3轮；7）元数据RAG：先用向量检索找到相关表和历史相似SQL，避免全量Schema注入。常见错误：不给Schema就生成SQL；Few-shot与当前问题不相关；不做执行验证直接给业务用。"
+  }
+]

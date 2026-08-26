@@ -17,7 +17,11 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   aiProductManagerQuestions,
   agentDevQuestions,
+  dataAnalystQuestions,
+  frontendQuestions,
+  javaBackendQuestions,
   llmDevQuestions,
+  operationsQuestions,
   productManagerQuestions,
 } from "@/lib/questions";
 import {
@@ -27,7 +31,12 @@ import {
   updateCustomQuestion,
 } from "@/lib/storage";
 import { getRoleLabel, ROLE_OPTIONS } from "@/lib/roles";
-import type { CustomQuestion, Question, RoleKey } from "@/lib/types";
+import {
+  isRoleKey,
+  type CustomQuestion,
+  type Question,
+  type RoleKey,
+} from "@/lib/types";
 
 type DisplayQuestion = Question & {
   role: RoleKey;
@@ -61,6 +70,26 @@ function buildDisplayQuestions(): DisplayQuestion[] {
     role: "llm_dev" as RoleKey,
     custom: false,
   }));
+  const frontendDisplayQuestions = frontendQuestions.map((question) => ({
+    ...question,
+    role: "frontend" as RoleKey,
+    custom: false,
+  }));
+  const javaBackendDisplayQuestions = javaBackendQuestions.map((question) => ({
+    ...question,
+    role: "java_backend" as RoleKey,
+    custom: false,
+  }));
+  const dataAnalystDisplayQuestions = dataAnalystQuestions.map((question) => ({
+    ...question,
+    role: "data_analyst" as RoleKey,
+    custom: false,
+  }));
+  const operationsDisplayQuestions = operationsQuestions.map((question) => ({
+    ...question,
+    role: "operations" as RoleKey,
+    custom: false,
+  }));
   const customQuestions = loadCustomQuestions().map((question) => ({
     ...question,
     custom: true,
@@ -72,6 +101,10 @@ function buildDisplayQuestions(): DisplayQuestion[] {
     ...pmQuestions,
     ...agentQuestions,
     ...llmQuestions,
+    ...frontendDisplayQuestions,
+    ...javaBackendDisplayQuestions,
+    ...dataAnalystDisplayQuestions,
+    ...operationsDisplayQuestions,
   ];
 }
 
@@ -95,13 +128,7 @@ function normalizeUploadedItem(
     return null;
   }
 
-  const role: RoleKey =
-    candidate.role === "pm" ||
-    candidate.role === "ai_pm" ||
-    candidate.role === "agent_dev" ||
-    candidate.role === "llm_dev"
-      ? candidate.role
-      : "ai_pm";
+  const role: RoleKey = isRoleKey(candidate.role) ? candidate.role : "ai_pm";
 
   return {
     id: Date.now() + index,

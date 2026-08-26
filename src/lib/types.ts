@@ -1,4 +1,19 @@
-export type RoleKey = "ai_pm" | "pm" | "agent_dev" | "llm_dev";
+export const ROLE_KEYS = [
+  "ai_pm",
+  "pm",
+  "agent_dev",
+  "llm_dev",
+  "frontend",
+  "java_backend",
+  "data_analyst",
+  "operations",
+] as const;
+
+export type RoleKey = (typeof ROLE_KEYS)[number];
+
+export function isRoleKey(value: unknown): value is RoleKey {
+  return typeof value === "string" && ROLE_KEYS.some((role) => role === value);
+}
 export type InterviewMode = "practice" | "simulation";
 
 export interface Question {

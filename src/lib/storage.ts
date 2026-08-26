@@ -1,3 +1,4 @@
+import { ROLE_KEYS } from "./types";
 import type {
   CustomQuestion,
   DimensionScore,
@@ -20,7 +21,6 @@ const PROGRESS_KEY = "ai-mock-interview:progress";
 const ANALYTICS_KEY = "ai-mock-interview:analytics";
 const TRANSIENT_SESSION_KEY = "ai-mock-interview:latest-session";
 const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
-const ROLE_KEYS = ["ai_pm", "pm", "agent_dev", "llm_dev"] as const;
 
 function safeSetItem(storage: Storage, key: string, value: string): boolean {
   try {

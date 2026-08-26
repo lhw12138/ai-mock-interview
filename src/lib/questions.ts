@@ -18,6 +18,44 @@ export interface Question {
 
 import { agentDevQuestions } from "./questions-agent";
 import { llmDevQuestions } from "./questions-llm";
+import frontendQuestionData from "./question-banks/frontend.json";
+import javaBackendQuestionData from "./question-banks/java-backend.json";
+import dataAnalystQuestionData from "./question-banks/data-analyst.json";
+import operationsQuestionData from "./question-banks/operations.json";
+import { loadBuiltInQuestionBank } from "./question-bank-loader";
+
+export const frontendQuestions = loadBuiltInQuestionBank(frontendQuestionData, {
+  expectedRole: "frontend",
+  startId: 1001,
+  bankName: "前端开发工程师",
+});
+
+export const javaBackendQuestions = loadBuiltInQuestionBank(
+  javaBackendQuestionData,
+  {
+    expectedRole: "backend",
+    startId: 2001,
+    bankName: "Java后端开发工程师",
+  },
+);
+
+export const dataAnalystQuestions = loadBuiltInQuestionBank(
+  dataAnalystQuestionData,
+  {
+    expectedRole: "data_analyst",
+    startId: 3001,
+    bankName: "数据分析师",
+  },
+);
+
+export const operationsQuestions = loadBuiltInQuestionBank(
+  operationsQuestionData,
+  {
+    expectedRole: "operations",
+    startId: 4001,
+    bankName: "运营",
+  },
+);
 
 export { agentDevQuestions } from "./questions-agent";
 export { llmDevQuestions } from "./questions-llm";
@@ -487,11 +525,19 @@ Crazy	Egg：提供网站点击热力图和滚动地图等用户行为分析。
 // 产品经理：通用PM 50题
 // AGENT开发工程师：71题
 // 大模型应用开发工程师：65题
+// 前端开发工程师：100题
+// Java后端开发工程师：100题
+// 数据分析师：100题
+// 运营：100题
 export const jobQuestionMap: Record<string, Question[]> = {
   "AI产品经理": [...aiProductManagerQuestions, ...productManagerQuestions],
   "产品经理": productManagerQuestions,
   "AGENT开发工程师": agentDevQuestions,
   "大模型应用开发工程师": llmDevQuestions,
+  "前端开发工程师": frontendQuestions,
+  "Java后端开发工程师": javaBackendQuestions,
+  "数据分析师": dataAnalystQuestions,
+  "运营": operationsQuestions,
 };
 
 /**

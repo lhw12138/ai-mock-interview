@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ROLE_KEYS } from "./types";
 
 export const productEventNames = [
   "landing_view",
@@ -33,7 +34,7 @@ const attributionSchema = z
 
 const eventPropertiesSchema = z
   .object({
-    role: z.enum(["ai_pm", "pm", "agent_dev", "llm_app_dev"]).optional(),
+    role: z.enum([...ROLE_KEYS, "llm_app_dev"]).optional(),
     mode: z.enum(["practice", "simulation"]).optional(),
     questionCount: z.number().int().min(1).max(20).optional(),
     questionIndex: z.number().int().min(0).max(20).optional(),
