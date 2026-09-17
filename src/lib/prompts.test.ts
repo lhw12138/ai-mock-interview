@@ -59,4 +59,30 @@ describe("role-specific prompts", () => {
     expect(prompt.system).toContain("userLifecycle");
     expect(prompt.system).toContain("dataDecision");
   });
+
+  it("uses the custom interview title and generic evidence dimensions", () => {
+    const prompt = buildInterviewPrompt({
+      role: "custom",
+      customInterviewTitle: "人工智能专业研究生复试",
+      customInterviewContext: "重点考察科研动机",
+      resume: "参与过多模态检索项目",
+      questions: [question],
+      currentIndex: 0,
+      totalQuestions: 1,
+      followUpCount: 0,
+      conversation: [],
+      currentAnswer: "候选人回答",
+    });
+    const report = buildReportPrompt({
+      role: "custom",
+      customInterviewTitle: "人工智能专业研究生复试",
+      questions: [question],
+      conversation: [],
+    });
+
+    expect(prompt.system).toContain("人工智能专业研究生复试");
+    expect(prompt.prompt).toContain("重点考察科研动机");
+    expect(prompt.prompt).toContain("参与过多模态检索项目");
+    expect(report.system).toContain("knowledgeDepth");
+  });
 });

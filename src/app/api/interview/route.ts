@@ -51,8 +51,14 @@ const requestSchema = z.object({
     .enum(["screening", "professional", "final"])
     .optional(),
   jobDescription: z.string().max(12000).optional(),
+  resume: z.string().max(30000).optional(),
   practiceGoal: z.string().max(100).optional(),
+  customInterviewTitle: z.string().trim().max(80).optional(),
+  customInterviewContext: z.string().trim().max(4000).optional(),
 }).superRefine((value, context) => {
+  if (value.role === "custom" && !value.customInterviewTitle) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["customInterviewTitle"], message: "缺少自定义面试名称" });
+  }
   if (value.currentIndex >= value.questions.length) {
     context.addIssue({
       code: z.ZodIssueCode.custom,

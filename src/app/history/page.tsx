@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { TrendChart } from "@/components/trend-chart";
-import { getRoleLabel } from "@/lib/roles";
+import { getInterviewLabel } from "@/lib/roles";
 import { deleteSession, getValidSessions } from "@/lib/storage";
 import type { InterviewSession } from "@/lib/types";
 
@@ -103,7 +103,7 @@ export default function HistoryPage() {
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <div className="font-medium text-slate-200">
-                      {getRoleLabel(session.role)} · {session.questionCount} 题
+                      {getInterviewLabel(session.role, session.customInterviewTitle)} · {session.questionCount} 题
                     </div>
                     <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
                       <CalendarDays className="h-3.5 w-3.5" />

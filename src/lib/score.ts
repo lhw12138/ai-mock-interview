@@ -56,6 +56,14 @@ const OPERATIONS_DIMENSIONS: DimensionDefinition[] = [
   { key: "communication", label: "表达沟通", weight: 0.15 },
 ];
 
+const CUSTOM_DIMENSIONS: DimensionDefinition[] = [
+  { key: "relevance", label: "回答针对性", weight: 0.25 },
+  { key: "knowledgeDepth", label: "内容深度", weight: 0.25 },
+  { key: "structure", label: "逻辑结构", weight: 0.2 },
+  { key: "communication", label: "表达沟通", weight: 0.15 },
+  { key: "adaptability", label: "应变能力", weight: 0.15 },
+];
+
 export const DIMENSION_DEFS_BY_ROLE: Record<RoleKey, DimensionDefinition[]> = {
   ai_pm: PM_DIMENSIONS,
   pm: PM_DIMENSIONS,
@@ -65,6 +73,7 @@ export const DIMENSION_DEFS_BY_ROLE: Record<RoleKey, DimensionDefinition[]> = {
   java_backend: JAVA_BACKEND_DIMENSIONS,
   data_analyst: DATA_ANALYST_DIMENSIONS,
   operations: OPERATIONS_DIMENSIONS,
+  custom: CUSTOM_DIMENSIONS,
 };
 
 export function getDimensionDefs(role: RoleKey): DimensionDefinition[] {

@@ -13,7 +13,7 @@ import {
   getSessionById,
   saveInterviewConfig,
 } from "@/lib/storage";
-import { getQuestionsForRole, getRoleLabel } from "@/lib/roles";
+import { getInterviewLabel, getQuestionsForRole } from "@/lib/roles";
 import { getDimensionDefs } from "@/lib/score";
 import type { InterviewSession } from "@/lib/types";
 import {
@@ -158,6 +158,7 @@ export default function ReportPage() {
       practiceGoal: weakestDefinition.label,
       sourceSessionId: activeSession.id,
       baselineAnswers,
+      customInterviewTitle: activeSession.customInterviewTitle,
     });
     router.push("/interview");
   }
@@ -171,7 +172,9 @@ export default function ReportPage() {
       .filter((question): question is InterviewSession["questions"][number] =>
         Boolean(question),
       );
-    const fallback = getQuestionsForRole(activeSession.role, 5, { avoidRecent: true });
+    const fallback = activeSession.role === "custom"
+      ? activeSession.questions
+      : getQuestionsForRole(activeSession.role, 5, { avoidRecent: true });
     const unique = [...lowScoreQuestions, ...fallback].filter(
       (question, index, items) =>
         items.findIndex((item) => item.id === question.id) === index,
@@ -268,7 +271,7 @@ export default function ReportPage() {
                 面试报告
               </div>
               <h1 className="text-3xl font-bold text-white">
-                {getRoleLabel(session.role)} · {session.questionCount} 题
+                {getInterviewLabel(session.role, session.customInterviewTitle)} · {session.questionCount} 题
               </h1>
               <p className="mt-2 text-sm text-slate-400">{createdAt}</p>
             </div>

@@ -50,6 +50,16 @@ function isQuestion(value: unknown): value is Question {
 function isInterviewConfig(value: unknown): value is InterviewConfig {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Partial<InterviewConfig>;
+  const customTitleValid =
+    candidate.role !== "custom" ||
+    (typeof candidate.customInterviewTitle === "string" &&
+      candidate.customInterviewTitle.trim().length > 0 &&
+      candidate.customInterviewTitle.length <= 80);
+  const customContextValid =
+    candidate.customInterviewContext === undefined ||
+    (typeof candidate.customInterviewContext === "string" &&
+      candidate.customInterviewContext.length <= 4000);
+
   return (
     typeof candidate.role === "string" &&
     ROLE_KEYS.includes(candidate.role as (typeof ROLE_KEYS)[number]) &&
@@ -64,7 +74,9 @@ function isInterviewConfig(value: unknown): value is InterviewConfig {
     new Set(candidate.questions.map((question) => question.id)).size ===
       candidate.questions.length &&
     typeof candidate.startedAt === "string" &&
-    Number.isFinite(Date.parse(candidate.startedAt))
+    Number.isFinite(Date.parse(candidate.startedAt)) &&
+    customTitleValid &&
+    customContextValid
   );
 }
 
@@ -290,6 +302,12 @@ function isInterviewSession(value: unknown): value is InterviewSession {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Partial<InterviewSession>;
 
+  const customTitleValid =
+    candidate.role !== "custom" ||
+    (typeof candidate.customInterviewTitle === "string" &&
+      candidate.customInterviewTitle.trim().length > 0 &&
+      candidate.customInterviewTitle.length <= 80);
+
   return (
     typeof candidate.id === "string" &&
     typeof candidate.createdAt === "string" &&
@@ -314,7 +332,8 @@ function isInterviewSession(value: unknown): value is InterviewSession {
         typeof (message as { content?: unknown }).content === "string" &&
         ((message as { content: string }).content.length <= 8000),
     ) &&
-    isInterviewReport(candidate.report)
+    isInterviewReport(candidate.report) &&
+    customTitleValid
   );
 }
 

@@ -4,7 +4,7 @@ import * as React from "react";
 import QRCode from "qrcode";
 import { Download, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getRoleLabel } from "@/lib/roles";
+import { getInterviewLabel } from "@/lib/roles";
 import { getDimensionDefs } from "@/lib/score";
 import type { InterviewSession } from "@/lib/types";
 
@@ -77,7 +77,7 @@ export function ReportShareButton({
     context.fillStyle = "#e2e8f0";
     context.font = "500 28px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
     context.fillText(
-      `${getRoleLabel(session.role)} · ${session.questionCount} 题`,
+      `${getInterviewLabel(session.role, session.customInterviewTitle)} · ${session.questionCount} 题`,
       80,
       170,
     );

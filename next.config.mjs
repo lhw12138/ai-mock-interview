@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: process.env.NEXT_OUTPUT_STANDALONE === "1" ? "standalone" : undefined,
+  serverExternalPackages: ["mammoth", "pdf-parse"],
   async headers() {
     return [
       {

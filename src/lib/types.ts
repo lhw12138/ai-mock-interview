@@ -7,6 +7,7 @@ export const ROLE_KEYS = [
   "java_backend",
   "data_analyst",
   "operations",
+  "custom",
 ] as const;
 
 export type RoleKey = (typeof ROLE_KEYS)[number];
@@ -56,7 +57,10 @@ export interface InterviewRequest {
   seniority?: InterviewConfig["seniority"];
   interviewRound?: InterviewConfig["interviewRound"];
   jobDescription?: string;
+  resume?: string;
   practiceGoal?: string;
+  customInterviewTitle?: string;
+  customInterviewContext?: string;
 }
 
 export type InterviewAction = "follow_up" | "next_question";
@@ -116,6 +120,7 @@ export interface InterviewSession {
   status?: "completed" | "ended_early";
   attempts?: AnswerAttempt[];
   sourceSessionId?: string;
+  customInterviewTitle?: string;
 }
 
 export interface InterviewConfig {
@@ -132,6 +137,8 @@ export interface InterviewConfig {
   practiceGoal?: string;
   sourceSessionId?: string;
   baselineAnswers?: Record<number, string>;
+  customInterviewTitle?: string;
+  customInterviewContext?: string;
 }
 
 export interface ModelConfig {

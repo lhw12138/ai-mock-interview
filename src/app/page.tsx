@@ -9,6 +9,7 @@ import {
   BriefcaseBusiness,
   History,
   Mic,
+  Upload,
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -69,6 +70,7 @@ function isDeepSeekService(baseUrl: string): boolean {
 
 export default function HomePage() {
   const router = useRouter();
+  const [setupKind, setSetupKind] = React.useState<"preset" | "custom">("preset");
   const [role, setRole] = React.useState<RoleKey>("ai_pm");
   const [questionCount, setQuestionCount] = React.useState<number>(8);
   const [avoidRecent, setAvoidRecent] = React.useState(false);
@@ -83,6 +85,10 @@ export default function HomePage() {
     "screening" | "professional" | "final"
   >("professional");
   const [jobDescription, setJobDescription] = React.useState("");
+  const [customTitle, setCustomTitle] = React.useState("");
+  const [customContext, setCustomContext] = React.useState("");
+  const [questionBank, setQuestionBank] = React.useState("");
+  const [uploadingField, setUploadingField] = React.useState<"resume" | "questionBank" | null>(null);
   const [modelConfig, setModelConfig] =
     React.useState<ModelConfig>(DEFAULT_MODEL_CONFIG);
   const [startError, setStartError] = React.useState("");
@@ -94,9 +100,38 @@ export default function HomePage() {
     message: string;
   }>({ status: "idle", message: "" });
   const startLockedRef = React.useRef(false);
+  const customTitleRef = React.useRef<HTMLInputElement>(null);
+  const questionBankRef = React.useRef<HTMLTextAreaElement>(null);
   const modelTestLockedRef = React.useRef(false);
   const savedModelConfigRef = React.useRef<ModelConfig | null>(null);
   const savedKeyRememberedRef = React.useRef(false);
+
+  async function handleDocumentUpload(
+    event: React.ChangeEvent<HTMLInputElement>,
+    field: "resume" | "questionBank",
+  ): Promise<void> {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setUploadingField(field);
+    setStartError("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const response = await fetch("/api/document-text", { method: "POST", body: form });
+      const payload = await response.json();
+      if (!response.ok || typeof payload.text !== "string") {
+        throw new Error(payload.error || "文件解析失败。");
+      }
+      if (field === "resume") setResume(payload.text.slice(0, MAX_RESUME_LENGTH));
+      else setQuestionBank(payload.text.slice(0, 60000));
+      if (payload.truncated) setStartError("文件内容较长，已保留前 6 万字。请检查后再开始。");
+    } catch (error) {
+      setStartError(error instanceof Error ? error.message : "文件解析失败。");
+    } finally {
+      setUploadingField(null);
+    }
+  }
 
   React.useEffect(() => {
     trackAnalytics({ type: "landing_view" });
@@ -257,6 +292,16 @@ export default function HomePage() {
       );
       return;
     }
+    if (setupKind === "custom" && customTitle.trim().length < 2) {
+      setStartError("请填写至少 2 个字的自定义面试名称。");
+      customTitleRef.current?.focus();
+      return;
+    }
+    if (setupKind === "custom" && questionBank.trim().length < 10) {
+      setStartError("请粘贴或上传至少 10 个字的题库内容。");
+      questionBankRef.current?.focus();
+      return;
+    }
     if (
       hasRecoverableInterview &&
       !window.confirm("开始新面试会替换尚未完成的上一场，确定继续吗？")
@@ -268,13 +313,38 @@ export default function HomePage() {
     setStartError("");
 
     try {
-      let questions = getQuestionsForRole(role, questionCount, {
-        avoidRecent,
-      });
+      const activeRole: RoleKey = setupKind === "custom" ? "custom" : role;
+      let questions = getQuestionsForRole(activeRole, questionCount, { avoidRecent });
       const trimmedResume = resume.trim();
       const trimmedJobDescription = jobDescription.trim();
 
-      if (trimmedResume || trimmedJobDescription) {
+      if (setupKind === "custom") {
+        const response = await fetch("/api/custom-interview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: customTitle.trim(),
+            context: customContext.trim(),
+            resume: trimmedResume,
+            questionBank: questionBank.trim(),
+            questionCount,
+            difficulty,
+            modelConfig,
+          }),
+        });
+        const payload = await response.json();
+        if (!response.ok || !Array.isArray(payload.questions)) {
+          throw new Error(payload.error || "自定义面试准备失败。");
+        }
+        questions = payload.questions.map(
+          (item: { question: string; category?: string; answer?: string }, index: number) => ({
+            id: Date.now() + index,
+            question: item.question,
+            category: item.category || "自定义题库",
+            answer: item.answer || "",
+          }),
+        );
+      } else if (trimmedResume || trimmedJobDescription) {
         const response = await fetch("/api/resume", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -313,7 +383,7 @@ export default function HomePage() {
 
       clearInterviewProgress();
       saveInterviewConfig({
-        role,
+        role: activeRole,
         questionCount,
         questions,
         startedAt: new Date().toISOString(),
@@ -323,11 +393,13 @@ export default function HomePage() {
         seniority,
         interviewRound,
         modelConfig,
+        customInterviewTitle: setupKind === "custom" ? customTitle.trim() : undefined,
+        customInterviewContext: setupKind === "custom" ? customContext.trim() || undefined : undefined,
       });
       saveModelConfig(modelConfig, { rememberApiKey });
       trackAnalytics({
         type: "interview_start",
-        role,
+        role: activeRole,
         questionCount,
         mode,
       });
@@ -384,7 +456,7 @@ export default function HomePage() {
           AI 面试模拟助手
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-400">
-          选择目标岗位和题数，即可开始一场沉浸式面试。支持语音或文字作答，结束后获得多维能力评分与逐题改进建议。
+          从岗位题库开始，或上传自己的材料模拟任意面试。支持语音或文字作答，结束后获得多维评分与逐题建议。
         </p>
       </div>
 
@@ -413,6 +485,33 @@ export default function HomePage() {
           <CardDescription>不注册、不登录，打开网页即可使用。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
+          <section>
+            <div className="mb-3 text-sm font-medium text-slate-300">选择面试类型</div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {([
+                ["preset", "岗位面试", "从 8 个岗位题库快速开始"],
+                ["custom", "自定义面试", "题库为主，结合个人材料动态追问"],
+              ] as const).map(([value, label, description]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setSetupKind(value)}
+                  aria-pressed={setupKind === value}
+                  className={cn(
+                    "rounded-xl border px-5 py-4 text-left transition-colors",
+                    setupKind === value
+                      ? "border-blue-500 bg-blue-500/15 text-white"
+                      : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10",
+                  )}
+                >
+                  <span className="block text-base font-semibold">{label}</span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-400">{description}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {setupKind === "preset" ? (
           <section>
             <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-300">
               <BriefcaseBusiness className="h-4 w-4 text-blue-400" />
@@ -455,6 +554,41 @@ export default function HomePage() {
               ))}
             </div>
           </section>
+          ) : (
+            <section className="space-y-4 rounded-2xl border border-blue-500/20 bg-blue-500/[0.06] p-4 sm:p-5">
+              <div>
+                <h2 className="text-base font-semibold text-white">定义这场面试</h2>
+                <p className="mt-1 text-xs leading-5 text-slate-400">
+                  适用于研究生复试、工作答辩、跨岗位面试或任何自备题库的场景。
+                </p>
+              </div>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-slate-300">面试名称</span>
+                <input
+                  ref={customTitleRef}
+                  value={customTitle}
+                  onChange={(event) => setCustomTitle(event.target.value)}
+                  maxLength={80}
+                  required
+                  aria-required="true"
+                  aria-invalid={Boolean(startError && customTitle.trim().length < 2)}
+                  aria-describedby="custom-interview-title-help"
+                  placeholder="例如：人工智能专业研究生复试"
+                  className="h-11 w-full rounded-lg border border-white/10 bg-slate-950 px-3 text-sm text-slate-200 placeholder:text-slate-400"
+                />
+                <span id="custom-interview-title-help" className="mt-1 block text-xs text-slate-400">用于面试页、报告和历史记录中识别本场练习。</span>
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-slate-300">面试要求或背景 <span className="font-normal text-slate-500">可选</span></span>
+                <Textarea
+                  value={customContext}
+                  onChange={(event) => setCustomContext(event.target.value)}
+                  maxLength={4000}
+                  placeholder="例如：重点考察科研动机、项目复盘与英文表达；回答控制在 2 分钟内。"
+                />
+              </label>
+            </section>
+          )}
 
           <section>
             <div className="mb-3 text-sm font-medium text-slate-300">练习方式</div>
@@ -526,6 +660,7 @@ export default function HomePage() {
             </div>
           </section>
 
+          {setupKind === "preset" && (
           <section>
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3">
               <input
@@ -544,10 +679,11 @@ export default function HomePage() {
               </span>
             </label>
           </section>
+          )}
 
           <section>
             <div className="mb-3 text-sm font-medium text-slate-300">
-              简历针对性提问
+              {setupKind === "custom" ? "面试材料" : "简历针对性提问"}
               <span className="ml-2 text-xs font-normal text-slate-500">可选</span>
             </div>
             <label className="mb-3 block">
@@ -570,21 +706,60 @@ export default function HomePage() {
               value={resume}
               onChange={(event) => setResume(event.target.value)}
               maxLength={MAX_RESUME_LENGTH}
-              placeholder="粘贴简历内容或关键经历，例如：3年AI产品经验，负责过RAG知识库产品。开始面试后会根据难度生成 3 道针对性问题，替换题库末尾 3 道，总题数保持不变。"
+              placeholder={setupKind === "custom" ? "粘贴简历、个人陈述、答辩材料或其他背景资料。" : "粘贴简历内容或关键经历，例如：3年AI产品经验，负责过RAG知识库产品。"}
               aria-label="简历内容或关键经历"
             />
-            <p className="mt-2 text-xs leading-5 text-slate-500">
-              填写后，内容会经本站服务器发送给你选择的模型服务商，仅用于生成针对性问题；不会写入面试历史。请先删除身份证号、电话等无关敏感信息。
+            {setupKind === "custom" && (
+              <label className="mt-2 inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-white/10 px-3 text-sm text-slate-300 hover:bg-white/10 focus-within:ring-2 focus-within:ring-blue-500/70">
+                <Upload className="h-4 w-4" />
+                {uploadingField === "resume" ? "正在读取…" : "上传 PDF / DOCX"}
+                <input type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" disabled={uploadingField !== null} onChange={(event) => void handleDocumentUpload(event, "resume")} />
+              </label>
+            )}
+            <p className="mt-2 text-xs leading-5 text-slate-400">
+              内容会临时发送给你选择的模型服务商，用于选题和动态追问，不写入面试历史。请先删除身份证号、电话等无关敏感信息。
             </p>
-            <Textarea
+            {setupKind === "preset" && <Textarea
               className="mt-3"
               value={jobDescription}
               onChange={(event) => setJobDescription(event.target.value)}
               maxLength={MAX_JD_LENGTH}
               placeholder="可选：粘贴目标岗位 JD，AI 会据此调整问题重点和追问方向。"
               aria-label="目标岗位 JD"
-            />
+            />}
           </section>
+
+          {setupKind === "custom" && (
+            <section>
+              <div className="mb-3 text-sm font-medium text-slate-300">
+                自定义题库 <span className="ml-2 text-xs font-normal text-red-300">必填</span>
+              </div>
+              <Textarea
+                ref={questionBankRef}
+                value={questionBank}
+                onChange={(event) => setQuestionBank(event.target.value)}
+                maxLength={60000}
+                required
+                aria-required="true"
+                aria-invalid={Boolean(startError && questionBank.trim().length < 10)}
+                aria-describedby="custom-question-bank-help"
+                className="min-h-48"
+                placeholder={"粘贴题目、参考答案或考察要点。\n例如：\n1. 为什么选择这个研究方向？\n2. 请介绍最有挑战的项目，以及你如何解决问题。"}
+                aria-label="自定义面试题库"
+              />
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-white/10 px-3 text-sm text-slate-300 hover:bg-white/10 focus-within:ring-2 focus-within:ring-blue-500/70">
+                  <Upload className="h-4 w-4" />
+                  {uploadingField === "questionBank" ? "正在读取…" : "上传 PDF / DOCX"}
+                  <input type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" disabled={uploadingField !== null} onChange={(event) => void handleDocumentUpload(event, "questionBank")} />
+                </label>
+                <span className="text-xs text-slate-400">{questionBank.length.toLocaleString()} / 60,000 字</span>
+              </div>
+              <p id="custom-question-bank-help" className="mt-2 text-xs leading-5 text-slate-400">
+                AI 会以题库为主选出本场问题，再根据你的回答和个人材料进行最多两轮追问。
+              </p>
+            </section>
+          )}
 
           <section>
             <details className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
@@ -628,7 +803,7 @@ export default function HomePage() {
                       }))
                     }
                     placeholder="默认 https://api.deepseek.com"
-                    className="h-10 w-full rounded-lg border border-white/10 bg-slate-950 px-3 text-sm text-slate-200 placeholder:text-slate-600"
+                    className="h-10 w-full rounded-lg border border-white/10 bg-slate-950 px-3 text-sm text-slate-200 placeholder:text-slate-400"
                   />
                 </label>
                 <label className="flex items-start gap-3 rounded-lg bg-white/5 px-3 py-2.5">
@@ -657,7 +832,7 @@ export default function HomePage() {
                     }
                     list="model-options"
                     placeholder="默认 deepseek-v4-flash"
-                    className="h-10 w-full rounded-lg border border-white/10 bg-slate-950 px-3 text-sm text-slate-200 placeholder:text-slate-600"
+                    className="h-10 w-full rounded-lg border border-white/10 bg-slate-950 px-3 text-sm text-slate-200 placeholder:text-slate-400"
                   />
                   <datalist id="model-options">
                     <option value="deepseek-v4-flash" />
@@ -684,7 +859,7 @@ export default function HomePage() {
                       }))
                     }
                     placeholder="sk-..."
-                    className="h-10 w-full rounded-lg border border-white/10 bg-slate-950 px-3 text-sm text-slate-200 placeholder:text-slate-600"
+                    className="h-10 w-full rounded-lg border border-white/10 bg-slate-950 px-3 text-sm text-slate-200 placeholder:text-slate-400"
                   />
                 </label>
                 <div className="flex flex-wrap items-center gap-3">
@@ -731,10 +906,14 @@ export default function HomePage() {
           </section>
 
           {startError && (
-            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            <div role="alert" aria-live="assertive" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
               {startError}
             </div>
           )}
+
+          <div className="sr-only" aria-live="polite" aria-atomic="true">
+            {uploadingField ? `正在读取${uploadingField === "resume" ? "面试材料" : "题库"}` : modelTest.message}
+          </div>
 
           <Button size="lg" className="w-full" onClick={handleStart} disabled={isStarting}>
             {isStarting ? "正在准备面试…" : "开始面试"}

@@ -41,7 +41,7 @@ import type {
   InterviewSession,
   InterviewTurn,
 } from "@/lib/types";
-import { getRoleLabel } from "@/lib/roles";
+import { getInterviewLabel } from "@/lib/roles";
 import { cn, createId } from "@/lib/utils";
 import { useAsr } from "@/lib/asr/use-asr";
 import { trackAnalytics } from "@/lib/analytics";
@@ -205,6 +205,8 @@ export default function InterviewPage() {
             interviewRound: currentConfig.interviewRound,
             jobDescription: currentConfig.jobDescription,
             practiceGoal: currentConfig.practiceGoal,
+            customInterviewTitle: currentConfig.customInterviewTitle,
+            customInterviewContext: currentConfig.customInterviewContext,
           }),
           signal: controller.signal,
         });
@@ -227,6 +229,7 @@ export default function InterviewPage() {
           status,
           attempts: currentAttempts,
           sourceSessionId: currentConfig.sourceSessionId,
+          customInterviewTitle: currentConfig.customInterviewTitle,
         };
 
         if (!saveSession(session)) {
@@ -588,7 +591,10 @@ export default function InterviewPage() {
       seniority: config.seniority,
       interviewRound: config.interviewRound,
       jobDescription: config.jobDescription,
+      resume: config.resume,
       practiceGoal: config.practiceGoal,
+      customInterviewTitle: config.customInterviewTitle,
+      customInterviewContext: config.customInterviewContext,
     };
     trackAnalytics({
       type: "answer_submit",
@@ -793,7 +799,7 @@ export default function InterviewPage() {
         </Button>
         <div className="flex w-full flex-wrap items-center justify-end gap-1 sm:w-auto sm:gap-2">
           <div className="mr-auto min-w-0 text-sm text-slate-400 sm:mr-0">
-            {getRoleLabel(config.role)} · 第{" "}
+            {getInterviewLabel(config.role, config.customInterviewTitle)} · 第{" "}
             {Math.min(currentIndex + 1, config.questions.length)} /{" "}
             {config.questions.length} 题
           </div>

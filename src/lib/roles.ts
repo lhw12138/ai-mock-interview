@@ -25,7 +25,7 @@ export const UPCOMING_ROLE_OPTIONS: ReadonlyArray<{
   description: string;
 }> = [];
 
-const DEFAULT_POOL_BY_ROLE: Record<RoleKey, string> = {
+const DEFAULT_POOL_BY_ROLE: Partial<Record<RoleKey, string>> = {
   ai_pm: "AI产品经理",
   pm: "产品经理",
   agent_dev: "AGENT开发工程师",
@@ -37,7 +37,18 @@ const DEFAULT_POOL_BY_ROLE: Record<RoleKey, string> = {
 };
 
 export function getRoleLabel(role: RoleKey): string {
+  if (role === "custom") return "自定义面试";
   return ROLE_OPTIONS.find((option) => option.key === role)?.label ?? "AI产品经理";
+}
+
+export function getInterviewLabel(
+  role: RoleKey,
+  customInterviewTitle?: string,
+): string {
+  if (role === "custom" && customInterviewTitle?.trim()) {
+    return customInterviewTitle.trim();
+  }
+  return getRoleLabel(role);
 }
 
 export function getQuestionsForRole(
@@ -54,7 +65,8 @@ export function getQuestionsForRole(
       answer: question.answer,
     }));
 
-  const builtInPool = jobQuestionMap[DEFAULT_POOL_BY_ROLE[role]] ?? [];
+  const poolName = DEFAULT_POOL_BY_ROLE[role];
+  const builtInPool = poolName ? jobQuestionMap[poolName] ?? [] : [];
   let freshBuiltIn = builtInPool;
   if (options?.avoidRecent) {
     const recentQuestionIds = new Set(
