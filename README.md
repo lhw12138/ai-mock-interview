@@ -60,7 +60,7 @@ npm run dev
 | 变量 | 说明 | 默认值 |
 | --- | --- | --- |
 | `DEEPSEEK_API_KEY` | DeepSeek API Key，必填 | 无 |
-| `AI_MODEL` | DeepSeek 模型标识 | `deepseek-v4-flash` |
+| `AI_MODEL` | DeepSeek 模型标识 | `deepseek-flash` |
 | `AI_BASE_URL` | OpenAI 兼容接口地址 | `https://api.deepseek.com` |
 | `XF_APPID` | 讯飞开放平台应用 AppID | 无 |
 | `XF_API_KEY` | 讯飞应用 APIKey | 无 |
@@ -131,7 +131,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build-fc-package.ps1
    - 内存建议：512 MB 及以上
    - 最小实例数：0（无请求不收费，首次访问稍慢属正常）
 4. 在函数配置的环境变量中填入：
-   - `DEEPSEEK_API_KEY`、`AI_MODEL=deepseek-v4-flash`、`AI_BASE_URL=https://api.deepseek.com`
+   - `DEEPSEEK_API_KEY`、`AI_MODEL=deepseek-flash`、`AI_BASE_URL=https://api.deepseek.com`
    - 讯飞语音：`XF_APPID`、`XF_API_KEY`、`XF_API_SECRET`
 5. 创建完成后，使用控制台提供的默认域名访问；后续要绑定自己的域名时，大陆区域需要完成 ICP 备案（可改用香港区域规避）。
 

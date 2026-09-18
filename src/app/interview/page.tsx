@@ -48,9 +48,21 @@ import { trackAnalytics } from "@/lib/analytics";
 
 const DEFAULT_SITE_MODEL = {
   baseUrl: "https://api.deepseek.com",
-  model: "deepseek-v4-flash",
+  model: "deepseek-flash",
   apiKey: "",
 };
+
+async function readApiJson<T>(response: Response): Promise<T> {
+  const text = await response.text();
+  if (!text.trim()) {
+    throw new Error(response.ok ? "服务器返回了空响应，请重试。" : "服务暂时没有响应，请稍后重试。");
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error("服务器响应格式异常，请稍后重试。");
+  }
+}
 
 function restoreUsableModel(config: InterviewConfig): {
   config: InterviewConfig;
@@ -211,7 +223,7 @@ export default function InterviewPage() {
           signal: controller.signal,
         });
 
-        const payload = await response.json();
+        const payload = await readApiJson<InterviewSession["report"] & { error?: string }>(response);
         if (!response.ok) {
           throw new Error(payload.error || "评分报告生成失败。");
         }

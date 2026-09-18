@@ -42,14 +42,14 @@ const MAX_RESUME_LENGTH = 30000;
 const MAX_JD_LENGTH = 12000;
 const DEFAULT_MODEL_CONFIG: ModelConfig = {
   baseUrl: "https://api.deepseek.com",
-  model: "deepseek-v4-flash",
+  model: "deepseek-flash",
   apiKey: "",
 };
 const MODEL_PRESETS = {
   deepseek: {
     label: "DeepSeek（站方默认）",
     baseUrl: "https://api.deepseek.com",
-    model: "deepseek-v4-flash",
+    model: "deepseek-flash",
   },
   zhipu: {
     label: "智谱 GLM-4.5-Flash（免费·稳定）",
@@ -58,6 +58,26 @@ const MODEL_PRESETS = {
   },
 } as const;
 type ModelPresetKey = keyof typeof MODEL_PRESETS | "custom";
+
+interface HomeApiPayload {
+  ok?: boolean;
+  error?: string;
+  text?: string;
+  truncated?: boolean;
+  questions?: Array<{ question: string; category?: string; answer?: string }>;
+}
+
+async function readApiJson(response: Response): Promise<HomeApiPayload> {
+  const text = await response.text();
+  if (!text.trim()) {
+    throw new Error(response.ok ? "服务器返回了空响应，请重试。" : "服务暂时没有响应，请稍后重试。");
+  }
+  try {
+    return JSON.parse(text) as HomeApiPayload;
+  } catch {
+    throw new Error("服务器响应格式异常，请稍后重试。");
+  }
+}
 
 function isDeepSeekService(baseUrl: string): boolean {
   try {
@@ -119,7 +139,7 @@ export default function HomePage() {
       const form = new FormData();
       form.append("file", file);
       const response = await fetch("/api/document-text", { method: "POST", body: form });
-      const payload = await response.json();
+      const payload = await readApiJson(response);
       if (!response.ok || typeof payload.text !== "string") {
         throw new Error(payload.error || "文件解析失败。");
       }
@@ -246,7 +266,7 @@ export default function HomePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ modelConfig }),
       });
-      const payload = await response.json();
+      const payload = await readApiJson(response);
       if (payload.ok) {
         setModelTest({
           status: "ok",
@@ -332,7 +352,7 @@ export default function HomePage() {
             modelConfig,
           }),
         });
-        const payload = await response.json();
+        const payload = await readApiJson(response);
         if (!response.ok || !Array.isArray(payload.questions)) {
           throw new Error(payload.error || "自定义面试准备失败。");
         }
@@ -358,14 +378,14 @@ export default function HomePage() {
             modelConfig,
           }),
         });
-        const payload = await response.json();
+        const payload = await readApiJson(response);
 
         if (!response.ok || !Array.isArray(payload.questions)) {
           throw new Error(payload.error || "简历针对性问题生成失败。");
         }
 
         const resumeQuestions = payload.questions.map(
-          (item: { question: string; category: string; answer: string }, index: number) => ({
+          (item: { question: string; category?: string; answer?: string }, index: number) => ({
             id: Date.now() + index,
             question: item.question,
             category: item.category ?? "简历针对性",
@@ -831,11 +851,11 @@ export default function HomePage() {
                       }))
                     }
                     list="model-options"
-                    placeholder="默认 deepseek-v4-flash"
+                    placeholder="默认 deepseek-flash"
                     className="h-10 w-full rounded-lg border border-white/10 bg-slate-950 px-3 text-sm text-slate-200 placeholder:text-slate-400"
                   />
                   <datalist id="model-options">
-                    <option value="deepseek-v4-flash" />
+                    <option value="deepseek-flash" />
                     <option value="deepseek-v4-pro" />
                     <option value="deepseek-chat" />
                     <option value="deepseek-reasoner" />

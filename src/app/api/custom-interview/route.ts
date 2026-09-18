@@ -76,6 +76,10 @@ export async function POST(request: Request) {
     }
     return Response.json({ questions: result.object.questions });
   } catch (error) {
+    console.error(
+      "custom_interview_generation_failed",
+      error instanceof Error ? error.message : "unknown error",
+    );
     return Response.json(
       { error: getPublicAiError(error, "自定义面试准备失败，请稍后重试。") },
       { status: 502 },

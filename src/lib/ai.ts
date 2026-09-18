@@ -71,5 +71,5 @@ export function getDeepSeekModel(overrides?: ModelOverrides) {
     ...(isZhipuBaseUrl(baseUrl) ? { fetch: createZhipuFetch() } : {}),
   });
 
-  return openai(overrides?.model || process.env.AI_MODEL || "deepseek-v4-flash");
+  return openai(overrides?.model || process.env.AI_MODEL || "deepseek-flash");
 }
