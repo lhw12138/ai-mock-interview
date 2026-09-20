@@ -1,6 +1,5 @@
 import path from "node:path";
 import mammoth from "mammoth";
-import { PDFParse } from "pdf-parse";
 import { enforceRateLimit, enforceSameOriginRequest } from "@/lib/api-security";
 
 export const runtime = "nodejs";
@@ -48,12 +47,11 @@ export async function POST(request: Request) {
     let extracted = "";
 
     if (extension === ".pdf" || file.type === "application/pdf") {
-      const parser = new PDFParse({ data: new Uint8Array(buffer) });
-      try {
-        extracted = (await parser.getText()).text;
-      } finally {
-        await parser.destroy();
-      }
+      // Load the PDF engine only for PDF files. Keeping this import out of the
+      // route module prevents browser-only PDF globals from breaking DOCX
+      // uploads in serverless Node runtimes.
+      const pdfParse = (await import("pdf-parse")).default;
+      extracted = (await pdfParse(buffer)).text;
     } else if (
       extension === ".docx" ||
       file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -75,7 +73,11 @@ export async function POST(request: Request) {
       truncated: text.length > MAX_TEXT_LENGTH,
       fileName: file.name,
     });
-  } catch {
+  } catch (error) {
+    console.error(
+      "document_text_parse_failed",
+      error instanceof Error ? error.message : "unknown error",
+    );
     return Response.json(
       { error: "文件解析失败，请改为粘贴文本或更换文件后重试。" },
       { status: 422 },
